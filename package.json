@@ -1,0 +1,21 @@
+{
+  "name": "sana-grade-8",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SANA — interactive grade 8 history, mathematics and physics in Russian and Kazakh.",
+  "type": "module",
+  "scripts": {
+    "build": "tailwindcss -i ./src/input.css -o ./dist/style.css --minify",
+    "dev": "tailwindcss -i ./src/input.css -o ./dist/style.css --watch",
+    "watch": "tailwindcss -i ./src/input.css -o ./dist/style.css --watch",
+    "start": "node scripts/serve.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "4.3.3",
+    "tailwindcss": "4.3.3"
+  }
+}
