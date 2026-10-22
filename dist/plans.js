@@ -24,6 +24,7 @@ export function setupPlanDialog(t) {
   function render() {
     if (!selectedPlan) return;
     const plan = PLANS[selectedPlan];
+    dialog.dataset.plan = selectedPlan;
     dialog.querySelector('#plan-dialog-title').textContent = t(plan.nameKey);
     dialog.querySelector('#plan-dialog-tokens').textContent = `${new Intl.NumberFormat(document.documentElement.lang).format(plan.tokens)} ${t('tokensUnit')}`;
     dialog.querySelector('#plan-dialog-features').replaceChildren(...plan.features.map((key) => {

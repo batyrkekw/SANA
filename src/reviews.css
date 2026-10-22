@@ -1,0 +1,77 @@
+@layer components {
+  .reviews.section-light #review-community { min-width: 0; }
+  .reviews.section-light .review-community-card { padding: clamp(24px, 3.5vw, 40px); border: 1px solid #cfc4ad; border-radius: 18px; color: #101f32; background: #fff; box-shadow: 0 18px 50px #101f3207; }
+  .reviews.section-light .review-invitation { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 13px; align-items: start; }
+  .reviews.section-light .review-community-quote { font: 112px/.9 var(--font-display); color: #977022; }
+  .reviews.section-light #review-community-title { font: 500 clamp(28px, 3vw, 36px)/1.13 var(--font-display); color: #101f32; margin: 0 0 14px; text-wrap: balance; }
+  .reviews.section-light .review-community-description { margin: 0; font-size: 13px; line-height: 1.85; color: #526273; }
+  .reviews.section-light .review-prompts { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; list-style: none; margin: 25px 0; padding: 0; }
+  .reviews.section-light .review-prompts li { padding: 14px 15px; border: 1px solid #e2d9c6; border-radius: 9px; background: #faf8f2; font-size: 12px; font-weight: 600; color: #735313; }
+  .reviews.section-light .review-prompts li::before { content: '✧'; margin-right: 8px; color: #805c16; }
+  .reviews.section-light .review-local-notice { font-size: 11px; line-height: 1.8; color: #526273; margin: 22px 0 19px; padding-left: 12px; border-left: 2px solid #b28b3d; }
+  .reviews.section-light .review-local-notice.review-notice-warning { color: #674713; border-color: #9c7024; }
+  .reviews.section-light .review-community-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .reviews.section-light .review-draft-preview { margin: 24px 0 0; padding: 21px; background: #f6f8fa; border: 1px solid #dce2e8; border-radius: 10px; }
+  .reviews.section-light .review-draft-label { display: inline-block; margin: 0 0 12px; border: 1px solid #c6ad77; border-radius: 5px; padding: 6px 9px; font-size: 10px; font-weight: 700; line-height: 1.7; color: #70500f; background: #fcf5e5; }
+  .reviews.section-light .review-draft-author { margin: 0 0 12px; color: #526273; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+  .reviews.section-light .review-draft-text { max-height: 270px; overflow: auto; margin: 0; color: #101f32; font-size: 13px; line-height: 1.9; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .reviews.section-light .review-action-status { margin: 15px 0 0; color: #2d5c45; font-size: 11px; line-height: 1.8; }
+  .reviews.section-light .review-action-status.review-status-warning { color: #674713; }
+  .reviews.section-light .review-action-status:empty { margin: 0; }
+  .reviews.section-light .review-delete-button { min-height: 44px; padding: 10px 3px; border: 0; border-radius: 3px; color: #874132; background: transparent; font-size: 11px; line-height: 1.6; text-decoration: underline; text-underline-offset: 4px; }
+  .reviews.section-light .review-delete-button:hover { color: #5e2419; }
+
+  .reviews.section-light .review-primary-button,
+  .review-dialog .review-primary-button { display: inline-flex; justify-content: center; align-items: center; min-height: 44px; padding: 12px 19px; border: 1px solid #101f32; border-radius: 7px; font-size: 12px; font-weight: 600; line-height: 1.6; text-align: center; color: #fff; background: #101f32; transition: background .2s, border-color .2s; }
+  .reviews.section-light .review-primary-button:hover,
+  .review-dialog .review-primary-button:hover { background: #263e58; border-color: #263e58; }
+  .reviews.section-light .review-secondary-button,
+  .review-dialog .review-secondary-button { display: inline-flex; justify-content: center; align-items: center; min-height: 44px; padding: 11px 15px; border: 1px solid #8f9eab; border-radius: 7px; font-size: 12px; font-weight: 600; line-height: 1.6; color: #33495f; background: transparent; transition: background .2s; }
+  .reviews.section-light .review-secondary-button:hover,
+  .review-dialog .review-secondary-button:hover { color: #101f32; background: #edf1f5; }
+
+  dialog.review-dialog { width: min(590px, calc(100vw - 28px)); max-height: calc(100dvh - 28px); padding: 28px; color: #101f32; background: #fff; border: 1px solid #bba779; border-radius: 16px; color-scheme: light; }
+  dialog.review-dialog::backdrop { background: #071525bf; backdrop-filter: blur(6px); }
+  .review-dialog .review-dialog-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .review-dialog .review-dialog-eyebrow { color: #805c16; font-size: 10px; font-weight: 700; line-height: 1.7; letter-spacing: 1px; text-transform: uppercase; }
+  .review-dialog .review-dialog-tools { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .review-dialog .review-dialog-close { display: grid; place-items: center; width: 40px; height: 40px; color: #101f32; background: #edf1f5; border: 0; border-radius: 50%; font-size: 27px; line-height: 1; }
+  .review-dialog .review-dialog-close:hover { background: #e0e6ed; }
+  .review-dialog .review-language-switch { border-color: #a6b0bb; }
+  .review-dialog .review-language-switch [data-language] { min-height: 34px; color: #435466; }
+  .review-dialog .review-language-switch [data-language]:hover { color: #101f32; background: #edf1f5; }
+  .review-dialog .review-language-switch [data-language][aria-pressed="true"] { color: #fff; background: #101f32; }
+  .review-dialog #review-dialog-title { margin: 25px 0 15px; color: #101f32; font: 500 40px/1.1 var(--font-display); }
+  .review-dialog .review-dialog-notice { color: #526273; background: #f6f8fa; border-left: 2px solid #a77b2c; border-radius: 0 6px 6px 0; padding: 12px 14px; margin: 0 0 23px; font-size: 12px; line-height: 1.8; }
+  .review-dialog .review-form { margin: 0; }
+  .review-dialog .review-field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .review-dialog .review-field { display: grid; min-width: 0; gap: 8px; margin-bottom: 19px; }
+  .review-dialog .review-field label { color: #22364b; font-size: 12px; font-weight: 600; line-height: 1.6; }
+  .review-dialog .review-field :is(input, select, textarea) { width: 100%; min-width: 0; min-height: 45px; padding: 11px 12px; border: 1px solid #8999a8; border-radius: 6px; background: #fff; color: #101f32; font: 13px/1.65 var(--font-sans); }
+  .review-dialog .review-field textarea { min-height: 150px; resize: vertical; }
+  .review-dialog .review-field :is(input, textarea)::placeholder { color: #657383; opacity: 1; }
+  .review-dialog .review-field :is(input, select, textarea):focus { outline: 2px solid #805c16; outline-offset: 2px; border-color: #805c16; }
+  .review-dialog :is(button, a):focus-visible { outline: 2px solid #805c16; outline-offset: 4px; }
+  .review-dialog .review-field-footer { display: flex; justify-content: space-between; align-items: start; gap: 18px; color: #526273; font-size: 10px; line-height: 1.7; }
+  .review-dialog #review-character-count { flex-shrink: 0; font-variant-numeric: tabular-nums; }
+  .review-dialog .review-form-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 5px; }
+
+  @media (max-width: 600px) {
+    .reviews.section-light .review-community-card { padding: 25px 21px; }
+    .reviews.section-light .review-invitation { grid-template-columns: 32px minmax(0, 1fr); gap: 9px; }
+    .reviews.section-light .review-community-quote { font-size: 85px; }
+    .reviews.section-light #review-community-title { font-size: 29px; }
+    .reviews.section-light .review-prompts { grid-template-columns: 1fr; gap: 8px; }
+    .reviews.section-light .review-community-actions { align-items: stretch; flex-direction: column; gap: 9px; }
+    .reviews.section-light .review-draft-preview { padding: 16px; }
+    dialog.review-dialog { padding: 22px 18px; }
+    .review-dialog .review-dialog-top { gap: 8px; }
+    .review-dialog .review-dialog-eyebrow { max-width: 110px; font-size: 9px; }
+    .review-dialog .review-dialog-tools { gap: 8px; }
+    .review-dialog #review-dialog-title { font-size: 34px; }
+    .review-dialog .review-field-grid { grid-template-columns: 1fr; gap: 0; }
+    .review-dialog .review-field :is(input, select, textarea) { font-size: 16px; }
+    .review-dialog .review-form-actions { display: grid; grid-template-columns: 1fr; gap: 9px; }
+    .review-dialog .review-field-footer { gap: 10px; }
+  }
+}

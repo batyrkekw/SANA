@@ -1,5 +1,10 @@
+import { ENHANCEMENTS_UI } from './enhancements-i18n.js';
+import { SHOWCASE_UI } from './showcase-i18n.js';
+import { REVIEWS_UI } from './reviews-i18n.js';
+
 export const UI = {
   ru: {
+    ...ENHANCEMENTS_UI.ru, ...SHOWCASE_UI.ru, ...REVIEWS_UI.ru,
     title: 'SANA — открытия в каждом уроке', metaDescription: 'SANA — учебные истории, комиксы и игры для любопытных учеников и вдохновлённых учителей. На русском и казахском языках.',
     skip: 'Перейти к содержимому', navLabel: 'Основная навигация', footerNavLabel: 'Навигация в подвале', navAbout: 'О проекте', navLessons: 'Пробные уроки', navGames: 'Игры', navFeatures: 'Возможности', navPricing: 'Тарифы', languageLabel: 'Язык сайта',
     startLearning: 'Начать обучение', heroEyebrow: 'ОБРАЗОВАТЕЛЬНАЯ ПЛАТФОРМА ДЛЯ УЧИТЕЛЕЙ', birdLabel: 'Белый голубь с раскрытыми крыльями', heroHeading: 'Маленькие истории.', heroHeadingEm: 'Большие истории.',
@@ -21,6 +26,7 @@ export const UI = {
     planDetails: 'Подробнее о тарифе', planDialogEyebrow: 'ПОДПИСКА SANA', planDialogNote: 'Это предварительный состав тарифа. Подключение подписки появится позже, а пока можно бесплатно попробовать уроки SANA.', closePlan: 'Закрыть описание тарифа', tryFree: 'Попробовать бесплатно',
   },
   kk: {
+    ...ENHANCEMENTS_UI.kk, ...SHOWCASE_UI.kk, ...REVIEWS_UI.kk,
     title: 'SANA — әр сабақтағы жаңалық', metaDescription: 'SANA — ізденімпаз оқушылар мен шабытты мұғалімдерге арналған оқу оқиғалары, комикстер мен ойындар. Қазақ және орыс тілдерінде.',
     skip: 'Мазмұнға өту', navLabel: 'Негізгі навигация', footerNavLabel: 'Төменгі навигация', navAbout: 'Жоба туралы', navLessons: 'Сынақ сабақтары', navGames: 'Ойындар', navFeatures: 'Мүмкіндіктер', navPricing: 'Тарифтер', languageLabel: 'Сайт тілі',
     startLearning: 'Оқуды бастау', heroEyebrow: 'МҰҒАЛІМДЕРГЕ АРНАЛҒАН БІЛІМ БЕРУ ПЛАТФОРМАСЫ', birdLabel: 'Қанатын жайған ақ көгершін', heroHeading: 'Шағын оқиғалар.', heroHeadingEm: 'Үлкен оқиғалар.', heroDescription: 'Сабақтарыңызға арналған комикстер, ойындар және көрнекі түсіндірмелер.', heroDescriptionSecond: 'Сыныпты қызықтырып, күрделіні түсінікті етуге көмектесеміз.', openLessons: 'Сабақтарды ашу', howItWorks: 'Бұл қалай жұмыс істейді', heroMotto: 'ОҚУ · ӨСУ · ЖАҢАЛЫҚ АШУ', scrollToExplore: 'Жаңалықтарға қарай',

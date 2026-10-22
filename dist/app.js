@@ -3,6 +3,9 @@ import { UI, normalizeLanguage, translate } from './i18n.js';
 import { birdMarkup, lessonArt } from './illustrations.js';
 import { createGameState, answerQuestion, advanceQuestion, completedCount } from './game-state.js';
 import { setupPlanDialog } from './plans.js';
+import { setupEnhancements } from './enhancements.js';
+import { setupShowcase } from './showcase.js';
+import { setupReviews } from './reviews.js';
 
 const $ = (selector) => document.querySelector(selector);
 const escapeHTML = (value) => String(value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
@@ -20,6 +23,9 @@ const modal = $('#comic');
 const grid = $('#lesson-grid');
 const next = $('#game-next');
 const planDialog = setupPlanDialog(t);
+const enhancements = setupEnhancements(t);
+const showcase = setupShowcase(t);
+const reviews = setupReviews(t);
 
 $('#hero-bird').innerHTML = birdMarkup({ animated: true });
 $('#game-bird').innerHTML = birdMarkup();
@@ -38,6 +44,9 @@ function applyLanguage() {
   renderLessons(); renderGameTabs(); renderGame();
   if (currentLesson) drawPage();
   planDialog.render();
+  enhancements.render();
+  showcase.render();
+  reviews.render();
 }
 
 document.querySelectorAll('[data-language]').forEach((button) => button.addEventListener('click', () => {

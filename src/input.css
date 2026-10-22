@@ -2,6 +2,9 @@
 @import "./hero.css";
 @import "./landing.css";
 @import "./section-themes.css";
+@import "./enhancements.css";
+@import "./showcase.css";
+@import "./reviews.css";
 @source "../dist/*.html";
 @source "../dist/*.js";
 

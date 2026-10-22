@@ -1,0 +1,85 @@
+@layer components {
+  html:root { scroll-padding-top: var(--header-offset, 110px); }
+  body > header { position: sticky; top: 0; z-index: 30; background: #101f32f5; backdrop-filter: blur(18px); box-shadow: 0 4px 22px #0000000c; }
+  header nav a { position: relative; transition: color .2s; }
+  header nav a[aria-current="location"] { color: #f0c66d; }
+  header nav a[aria-current="location"]::after { content: ''; position: absolute; height: 2px; background: #e4b64c; bottom: -7px; left: 0; right: 0; }
+
+  .pricing .pricing-grid { align-items: stretch; gap: 24px; }
+  .pricing .plan-card { border-radius: 16px; }
+  .pricing .plan-pro { background: #172a40; border-color: #75869b60; }
+  .pricing .plan-premium { position: relative; isolation: isolate; overflow: hidden; border: 1px solid #dfbd6c; background: radial-gradient(ellipse at 100% 0, #8c6a2d48, transparent 65%), linear-gradient(145deg, #202b36, #0a1625 75%); box-shadow: 0 12px 46px #0003, inset 0 0 0 4px #e4b64c0b; }
+  .pricing .plan-premium::before { content: ''; position: absolute; z-index: -1; inset: 0 18% auto; height: 1px; background: linear-gradient(90deg, transparent, #ffe7ad, transparent); }
+  .premium-orbit { position: absolute; z-index: -1; width: 230px; height: 230px; right: -95px; top: -80px; border: 1px solid #e4b64c23; border-radius: 50%; }
+  .premium-orbit::after { content: ''; position: absolute; inset: 24px; border: 1px solid #e4b64c19; border-radius: 50%; }
+  .premium-identity { display: flex; align-items: center; gap: 11px; min-height: 34px; color: #eacb85; font-size: 9px; font-weight: 600; letter-spacing: 2px; }
+  .premium-emblem { display: grid; place-items: center; width: 34px; height: 34px; }
+  .premium-emblem svg { width: 34px; height: 34px; }
+  .premium-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 23px 0 12px; flex-wrap: wrap; }
+  .pricing .premium-title-row h3 { margin: 0; color: #f5e6c0; }
+  .premium-badge { max-width: 130px; padding: 5px 8px; border: 1px solid #e8c57b50; border-radius: 5px; background: #e4b64c10; color: #f2d38e; font-size: 8px; line-height: 1.6; }
+  .pricing .plan-premium .plan-tagline { color: #bfc7ce; }
+  .pricing .plan-premium .token-amount strong { color: #f3d388; }
+  .pricing .plan-premium .plan-features > li::before { color: #f3d388; }
+  .pricing .plan-premium .plan-button { box-shadow: 0 4px 18px #e4b64c17; }
+  .pricing .plan-premium .plan-button:hover { box-shadow: 0 5px 24px #e4b64c30; }
+
+  .plan-dialog[data-plan="plus"] { color: #f4efe5; border: 1px solid #d4b465; background: radial-gradient(ellipse at top right, #594a2c70, transparent 65%), #101f32; }
+  .plan-dialog[data-plan="plus"] .eyebrow,
+  .plan-dialog[data-plan="plus"] .plan-dialog-tokens,
+  .plan-dialog[data-plan="plus"] .plan-features > li::before { color: #f0ce83; }
+  .plan-dialog[data-plan="plus"] #plan-dialog-note { color: #bcc7d2; }
+  .plan-dialog[data-plan="plus"] #close-plan { color: #f4efe5; background: #ffffff12; }
+
+  .plan-comparison { margin-top: 34px; border: 1px solid #b4c5d22d; border-radius: 12px; background: #12243866; }
+  .plan-comparison > summary, .faq-list summary { display: flex; justify-content: space-between; align-items: center; gap: 20px; cursor: pointer; list-style: none; }
+  .plan-comparison > summary { min-height: 74px; padding: 21px 26px; color: #edcf8e; font-size: 13px; }
+  .plan-comparison > summary::-webkit-details-marker, .faq-list summary::-webkit-details-marker { display: none; }
+  .plan-comparison > summary:hover { background: #e4b64c08; border-radius: inherit; }
+  .details-plus { display: grid; place-items: center; flex: 0 0 28px; height: 28px; border: 1px solid currentColor; border-radius: 50%; font-size: 20px; font-weight: 400; line-height: 1; transition: transform .2s; }
+  details[open] > summary .details-plus { transform: rotate(45deg); }
+  summary:focus-visible { outline: 2px solid #e4b64c; outline-offset: 4px; border-radius: 5px; }
+  .comparison-scroll { position: relative; overflow-x: auto; margin: 0 26px; scrollbar-width: thin; scrollbar-color: #a68a50 #142437; }
+  .comparison-scroll:focus-visible { outline: 2px solid #e4b64c; outline-offset: 4px; }
+  .comparison-table { width: 100%; min-width: 590px; border-collapse: collapse; font-size: 12px; }
+  .comparison-table caption { text-align: left; font-size: 10px; color: #a7b5c4; padding-bottom: 17px; }
+  .comparison-table th, .comparison-table td { padding: 17px 20px; border-bottom: 1px solid #ffffff12; text-align: center; }
+  .comparison-table th:first-child { width: 43%; text-align: left; padding-left: 0; font-weight: 400; }
+  .comparison-table thead th { color: #e4b64c; font-weight: 600; border-top: 1px solid #ffffff12; }
+  .comparison-table tr > :last-child { background: #e4b64c08; color: #f3d388; }
+  .comparison-table td.is-included { font-size: 17px; color: #e4b64c; }
+  .comparison-note { color: #b6c3d0; font-size: 11px; line-height: 1.9; margin: 20px 26px 24px; }
+
+  main .faq.section-light { --navy: #101f32; --cream: #fbfcfd; --gold: #805c16; --muted: #526273; display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: clamp(36px, 6vw, 90px); color: #101f32; background: #fbfcfd; border-block: 1px solid #dce2e8; color-scheme: light; }
+  .faq-intro > p { max-width: 350px; color: #526273; font-size: 13px; line-height: 1.9; }
+  .faq-list { min-width: 0; border-top: 1px solid #cfc5af; }
+  .faq-list > details { border-bottom: 1px solid #d5dce2; }
+  .faq-list summary { min-height: 82px; padding: 21px 0; font-size: 13px; font-weight: 600; line-height: 1.7; }
+  .faq-list summary:hover { color: #805c16; }
+  .faq-list summary:focus-visible { outline-color: #805c16; }
+  .faq-list .details-plus { color: #9c792d; flex-basis: 25px; height: 25px; font-size: 18px; }
+  .faq-list details p { margin: 0; padding: 0 43px 25px 0; color: #526273; font-size: 12px; line-height: 1.9; }
+  main .closing.section-dark { background: #101f32; color: #f4efe5; }
+
+  @media (max-width: 1050px) {
+    .pricing .pricing-grid { gap: 15px; }
+    .premium-title-row { gap: 7px; }
+    .premium-badge { font-size: 7px; padding: 4px 6px; max-width: 99px; }
+  }
+  @media (max-width: 760px) {
+    .pricing .pricing-grid { gap: 23px; }
+    .premium-badge { font-size: 8px; max-width: 140px; }
+    main .faq.section-light { grid-template-columns: minmax(0, 1fr); gap: 23px; }
+    .faq-intro > p { max-width: 500px; }
+    .faq-list summary { min-height: 76px; font-size: 12px; }
+    .plan-comparison > summary { padding: 19px; font-size: 12px; }
+    .comparison-scroll { margin-inline: 19px; }
+    .comparison-note { margin-inline: 19px; }
+    .comparison-table th, .comparison-table td { padding: 14px; }
+    .comparison-table { min-width: 510px; }
+    .comparison-table th:first-child { width: 34%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .details-plus, header nav a { transition: none; }
+  }
+}
