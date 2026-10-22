@@ -2,6 +2,7 @@ import { LESSONS, SOURCES } from './content.js';
 import { UI, normalizeLanguage, translate } from './i18n.js';
 import { birdMarkup, lessonArt } from './illustrations.js';
 import { createGameState, answerQuestion, advanceQuestion, completedCount } from './game-state.js';
+import { setupPlanDialog } from './plans.js';
 
 const $ = (selector) => document.querySelector(selector);
 const escapeHTML = (value) => String(value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
@@ -18,6 +19,7 @@ const gameStates = Object.fromEntries(LESSONS.map((lesson) => [lesson.id, create
 const modal = $('#comic');
 const grid = $('#lesson-grid');
 const next = $('#game-next');
+const planDialog = setupPlanDialog(t);
 
 $('#hero-bird').innerHTML = birdMarkup({ animated: true });
 $('#game-bird').innerHTML = birdMarkup();
@@ -35,6 +37,7 @@ function applyLanguage() {
   });
   renderLessons(); renderGameTabs(); renderGame();
   if (currentLesson) drawPage();
+  planDialog.render();
 }
 
 document.querySelectorAll('[data-language]').forEach((button) => button.addEventListener('click', () => {

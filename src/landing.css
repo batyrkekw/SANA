@@ -1,0 +1,142 @@
+@layer components {
+  .achievements { display: grid; grid-template-columns: 1.15fr 1fr; align-items: center; gap: 38px 70px; position: relative; background: radial-gradient(ellipse at 80% 40%, #e4b64c0b, transparent 60%); }
+  .achievements-copy p, .section-intro > p, .features-intro > p, .pricing-intro > p { color: var(--muted); font-size: 14px; line-height: 1.9; max-width: 530px; }
+  .achievement-number { text-align: center; position: relative; padding: 24px 0; }
+  .achievement-number strong { display: block; font: 500 clamp(84px, 11vw, 160px)/1 var(--font-display); color: var(--gold); letter-spacing: -6px; font-variant-numeric: lining-nums; }
+  .achievement-number > span:last-child { display: block; margin-top: 14px; font-size: 14px; letter-spacing: 1px; }
+  .stat-star { position: absolute; right: 8%; top: 0; color: var(--gold); font-size: 25px; }
+  .achievement-details { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid #e4b64c40; margin-top: 7px; padding-top: 29px; gap: 32px; }
+  .achievement-details > div { display: flex; align-items: center; gap: 28px; }
+  .achievement-details strong { font: 500 27px/1.2 var(--font-display); color: var(--gold); white-space: nowrap; }
+  .achievement-details span { font-size: 12px; color: var(--muted); }
+  .reviews { display: grid; grid-template-columns: 1fr 1.2fr; gap: 65px; align-items: center; background: #14273a; border-block: 1px solid #e4b64c25; }
+  .review-placeholder { display: flex; gap: 27px; align-items: flex-start; border: 1px solid #e4b64c50; border-radius: 3px; padding: 38px; background: #101f3270; }
+  .quote-mark { font: 130px/.85 var(--font-display); color: var(--gold); }
+  .status-label { display: inline-block; font-size: 10px; line-height: 1.6; letter-spacing: 1px; text-transform: uppercase; color: var(--gold); }
+  .review-placeholder p { font: 27px/1.4 var(--font-display); margin: 19px 0 30px; color: #e9e7df; }
+  .review-rule { display: flex; gap: 20px; align-items: center; color: var(--gold); }
+  .review-rule > span:first-child { height: 1px; background: #e4b64c50; flex: 1; }
+  .video-section { padding-top: 80px; }
+  .video-section .section-intro { max-width: 750px; margin-bottom: 36px; }
+  .video-placeholder { position: relative; min-height: 380px; overflow: hidden; display: grid; place-items: center; padding: 50px 32px 90px; border: 1px solid #e4b64c60; border-radius: 6px; background: radial-gradient(ellipse at 50% 70%, #334539 0%, #1a3040 42%, #0b1929 85%); }
+  .video-orbit { position: absolute; width: 600px; height: 600px; border: 1px solid #e4b64c35; border-radius: 50%; pointer-events: none; }
+  .orbit-one { top: 20%; left: calc(50% - 300px); }
+  .orbit-two { top: 31%; left: calc(50% - 300px); }
+  .video-title-art { position: relative; text-align: center; font: 500 clamp(60px, 9vw, 112px)/1 var(--font-display); letter-spacing: .2em; padding-left: .2em; color: #f6f0e4; }
+  .video-title-art > span { display: block; font: 10px/1.5 var(--font-sans); letter-spacing: 5px; color: var(--gold); margin: 20px 0 0; }
+  .video-star { position: absolute; top: 35px; right: 38px; color: var(--gold); font-size: 30px; }
+  .video-caption { position: absolute; inset: auto 32px 25px; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding-top: 20px; border-top: 1px solid #e4b64c50; }
+  .video-caption > span:first-child { font-size: 12px; }
+  .video-caption .status-label { border: 1px solid #e4b64c60; border-radius: 30px; padding: 7px 13px; }
+  .features { display: grid; grid-template-columns: 1fr 1.05fr; gap: 95px; background: #14273a; border-top: 1px solid #e4b64c25; }
+  .features-intro h2 { max-width: 500px; }
+  .text-link { display: inline-flex; gap: 24px; align-items: center; font-size: 12px; font-weight: 600; color: var(--gold); border-bottom: 1px solid #e4b64c70; padding-block: 12px 8px; }
+  .text-link:hover { border-bottom-color: currentColor; }
+  .features-intro .text-link { margin-top: 20px; }
+  .feature-item { display: grid; grid-template-columns: 40px 1fr; gap: 20px; padding: 26px 0; border-top: 1px solid #e4b64c40; }
+  .feature-item:last-child { border-bottom: 1px solid #e4b64c40; }
+  .feature-index { font: 26px/1.2 var(--font-display); color: var(--gold); }
+  .feature-item h3 { font: 500 28px/1.15 var(--font-display); margin: 0 0 10px; }
+  .feature-item p { font-size: 12px; color: var(--muted); line-height: 1.9; margin: 0; }
+  .lessons .trial-badge { color: #73500b; background: #e4b64c25; border-color: #b7862750; white-space: normal; text-align: center; max-width: 220px; font-weight: 600; }
+  .subscription-note { display: flex; gap: 24px; align-items: center; justify-content: space-between; margin-top: 30px; padding-top: 22px; border-top: 1px solid #b7862730; }
+  .subscription-note .demo-note { text-align: left; font-size: 12px; margin: 0; max-width: 650px; }
+  .subscription-note .text-link { flex-shrink: 0; color: #805c16; border-color: #b7862750; padding-top: 0; }
+  .pricing { border-top: 1px solid #e4b64c40; background: #0c1929; }
+  .pricing-intro { text-align: center; max-width: 770px; margin: 0 auto 44px; }
+  .pricing-intro > p { margin: 0 auto 20px; max-width: 620px; }
+  .pricing-intro .status-label { border: 1px solid #e4b64c50; border-radius: 30px; padding: 7px 16px; }
+  .pricing-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+  .plan-card { min-width: 0; border: 1px solid #e4b64c40; border-radius: 8px; background: #122438; padding: 29px; display: flex; flex-direction: column; }
+  .plan-card.plan-featured { border-color: var(--gold); background: linear-gradient(160deg, #334037 0%, #182c36 45%, #142638 100%); box-shadow: 0 0 32px #e4b64c08; }
+  .plan-card-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .plan-symbol { font-size: 27px; color: var(--gold); line-height: 34px; min-height: 34px; }
+  .plan-badge { color: var(--gold); font-size: 9px; text-align: right; line-height: 1.5; }
+  .plan-card h3 { font: 500 36px/1.1 var(--font-display); margin: 23px 0 12px; }
+  .plan-tagline { color: var(--muted); font-size: 12px; line-height: 1.8; margin: 0; min-height: 44px; }
+  .token-amount { padding: 23px 0 25px; border-bottom: 1px solid #e4b64c40; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .token-amount strong { font: 500 clamp(40px, 3.8vw, 58px)/1 var(--font-display); letter-spacing: -1.5px; color: var(--gold); white-space: nowrap; }
+  .token-amount > span { font-size: 11px; color: var(--muted); }
+  .plan-features { list-style: none; margin: 24px 0 30px; padding: 0; display: grid; gap: 15px; }
+  .plan-features > li { position: relative; padding-left: 21px; font-size: 12px; line-height: 1.7; }
+  .plan-features > li::before { content: '✓'; position: absolute; left: 0; color: var(--gold); }
+  .plan-card .plan-button { margin-top: auto; width: 100%; padding: 13px 16px; justify-content: space-between; gap: 14px; border: 1px solid #e4b64c80; color: var(--cream); background: transparent; font-size: 11px; }
+  .plan-card .plan-button:hover { background: #e4b64c12; }
+  .plan-card .plan-button.cream { color: #101f32; background: linear-gradient(110deg, #f4d88b, #e4b64c 65%, #d5a33a); border-color: var(--gold); }
+  .plan-card .plan-button.cream:hover { background: #f2cb6b; }
+  .token-explanation { max-width: 740px; text-align: center; margin: 28px auto 0; color: var(--muted); font-size: 11px; line-height: 1.9; }
+  .plan-dialog { width: min(520px, 94vw); padding: 30px; }
+  .plan-dialog .eyebrow { color: #805c16; }
+  .plan-dialog h2 { margin: 27px 0 10px; font-size: 44px; }
+  .plan-dialog-tokens { font: 500 32px/1.2 var(--font-display); color: #805c16; }
+  .plan-dialog .plan-features { border-block: 1px solid #b7862740; padding-block: 22px; }
+  .plan-dialog .plan-features > li::before { color: #805c16; }
+  .plan-dialog #plan-dialog-note { color: #536271; font-size: 13px; line-height: 1.8; margin-bottom: 24px; }
+  #close-plan { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; color: var(--navy); background: #101f3208; border: 0; border-radius: 50%; font-size: 26px; line-height: 1; }
+  @media (max-width: 1200px) {
+    header .header-cta { display: none; }
+    .features { gap: 55px; }
+    .achievement-details > div { gap: 18px; }
+    .plan-card { padding: 24px; }
+    .plan-card .plan-button { font-size: 10px; padding-inline: 12px; }
+  }
+  @media (max-width: 950px) {
+    .achievements, .reviews { gap: 35px; }
+    .review-placeholder { padding: 27px; gap: 16px; }
+    .quote-mark { font-size: 90px; }
+    .review-placeholder p { font-size: 24px; }
+    .achievement-details > div { align-items: flex-start; flex-direction: column; gap: 8px; }
+    .pricing-grid { gap: 14px; }
+    .plan-card { padding: 21px 18px; }
+    .token-amount { gap: 7px; }
+    .token-amount strong { font-size: 41px; }
+    .plan-card .plan-button { gap: 8px; }
+  }
+  @media (max-width: 760px) {
+    .reviews, .features { grid-template-columns: 1fr; gap: 30px; }
+    .section-intro > p, .features-intro > p { max-width: 650px; }
+    .feature-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; }
+    .feature-item:last-child { border-bottom: 0; }
+    .feature-item { gap: 12px; grid-template-columns: 30px 1fr; }
+    .feature-item h3 { font-size: 25px; }
+    .subscription-note { align-items: flex-start; flex-direction: column; gap: 10px; }
+    .pricing-grid { grid-template-columns: 1fr; gap: 23px; max-width: 560px; margin: auto; }
+    .plan-card { padding: 30px; }
+    .plan-card h3 { font-size: 37px; }
+    .plan-tagline { min-height: 0; }
+    .token-amount strong { font-size: 54px; }
+    .plan-features { gap: 13px; }
+    .plan-card .plan-button { font-size: 12px; padding: 14px 19px; }
+    .pricing-intro { margin-bottom: 30px; }
+  }
+  @media (max-width: 600px) {
+    header > nav { overflow-x: auto; justify-content: flex-start; gap: 22px; padding-bottom: 4px; scrollbar-width: thin; scrollbar-color: #e4b64c50 transparent; }
+    header > nav > a { flex-shrink: 0; }
+    footer nav { flex-wrap: wrap; }
+    .achievements { grid-template-columns: 1fr; gap: 14px; }
+    .achievement-number { text-align: left; padding: 16px 0 27px; }
+    .achievement-number strong { font-size: clamp(90px, 24vw, 130px); letter-spacing: -4px; }
+    .achievement-number > span:last-child { margin-top: 8px; }
+    .stat-star { right: 12%; top: 24px; }
+    .achievement-details { gap: 22px; margin-top: 0; }
+    .achievement-details strong { font-size: 23px; white-space: normal; }
+    .achievement-details span { font-size: 10px; }
+    .achievements-copy p, .section-intro > p, .features-intro > p, .pricing-intro > p { font-size: 12px; }
+    .review-placeholder { padding: 25px 22px; }
+    .quote-mark { font-size: 75px; }
+    .review-placeholder p { font-size: 24px; margin-bottom: 20px; }
+    .video-placeholder { min-height: 300px; padding: 40px 20px 100px; }
+    .video-caption { inset: auto 20px 20px; flex-direction: column; align-items: flex-start; gap: 12px; padding-top: 16px; }
+    .video-caption > span:first-child { font-size: 11px; }
+    .video-star { top: 25px; right: 23px; font-size: 22px; }
+    .video-title-art > span { font-size: 8px; letter-spacing: 4px; }
+    .feature-list { display: block; }
+    .feature-item { padding: 23px 0; grid-template-columns: 31px 1fr; gap: 18px; }
+    .feature-item:last-child { border-bottom: 1px solid #e4b64c40; }
+    .feature-item h3 { font-size: 28px; }
+    .feature-item p { font-size: 12px; }
+    .pricing-intro .status-label { font-size: 9px; padding-inline: 12px; }
+    .plan-card { padding: 26px; }
+    .plan-dialog { padding: 22px; }
+  }
+}

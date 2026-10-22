@@ -1,0 +1,254 @@
+@layer components {
+  .about.section-light,
+  .reviews.section-light,
+  .features.section-light,
+  .games.section-light,
+  .closing.section-light {
+    --navy: #101f32;
+    --cream: #fbfcfd;
+    --gold: #805c16;
+    --muted: #526273;
+    color: var(--navy);
+    background: #fbfcfd;
+    border-block: 1px solid #dce2e8;
+    color-scheme: light;
+  }
+
+  .section-light h2,
+  .section-light h3 {
+    color: var(--navy);
+  }
+
+  .section-light .eyebrow,
+  .section-light h2 em,
+  .section-light .text-link,
+  .section-light .status-label {
+    color: var(--gold);
+  }
+
+  .section-light .text-link {
+    border-bottom-color: #a57d35;
+  }
+
+  .section-light .text-link:hover {
+    color: #5f420c;
+    border-bottom-color: currentColor;
+  }
+
+  .section-light :is(a, button):focus-visible {
+    outline-color: #805c16;
+  }
+
+  .about.section-light .about-right > p,
+  .about.section-light .steps p {
+    color: var(--muted);
+  }
+
+  .about.section-light .step-index,
+  .about.section-light .steps .step > span {
+    color: var(--gold);
+    background: #fbfcfd;
+    border-color: #b49a66;
+  }
+
+  .about.section-light .steps::before {
+    background: #d4c7a9;
+  }
+
+  .about.section-light .steps::after {
+    background: linear-gradient(90deg, #a77a23, #cfb472);
+  }
+
+  .reviews.section-light .section-intro > p,
+  .features.section-light .features-intro > p,
+  .features.section-light .feature-item p {
+    color: var(--muted);
+  }
+
+  .reviews.section-light .review-placeholder {
+    color: var(--navy);
+    background: #fff;
+    border-color: #cfc2a3;
+    box-shadow: 0 12px 35px #101f3206;
+  }
+
+  .reviews.section-light .review-placeholder p {
+    color: var(--navy);
+  }
+
+  .reviews.section-light .quote-mark,
+  .reviews.section-light .review-rule {
+    color: var(--gold);
+  }
+
+  .reviews.section-light .review-rule > span:first-child {
+    background: #c4b185;
+  }
+
+  .features.section-light .feature-list {
+    color: var(--navy);
+  }
+
+  .features.section-light .feature-item {
+    border-top-color: #d3c7ab;
+  }
+
+  .features.section-light .feature-item:last-child {
+    border-bottom-color: #d3c7ab;
+  }
+
+  .features.section-light .feature-index {
+    color: var(--gold);
+  }
+
+  .games.section-light .game-copy > p {
+    color: var(--muted);
+  }
+
+  .games.section-light .game-meta,
+  .games.section-light .teacher-tip span:first-child {
+    color: var(--gold);
+  }
+
+  .games.section-light .teacher-tip {
+    border-left-color: #a57d35;
+  }
+
+  .games.section-light .game-tabs [data-game] {
+    color: var(--navy);
+    background: #fff;
+    border-color: #a7b2bd;
+  }
+
+  .games.section-light .game-tabs [data-game]:hover {
+    background: #edf1f5;
+    border-color: var(--navy);
+  }
+
+  .games.section-light .game-tabs [data-game]:is([aria-pressed="true"], [aria-selected="true"], .active) {
+    color: #fff;
+    background: var(--navy);
+    border-color: var(--navy);
+  }
+
+  /* Keep the interactive game panel dark inside its light section. */
+  .games.section-light .game-board {
+    --navy: #101f32;
+    --cream: #f4efe5;
+    --gold: #e4b64c;
+    --muted: #a7b5c4;
+    color: var(--cream);
+    background: #13263b;
+    border-color: #8f805a;
+    color-scheme: dark;
+  }
+
+  .games.section-light .game-board h3,
+  .games.section-light .game-board .game-title {
+    color: var(--cream);
+  }
+
+  .games.section-light .game-board p {
+    color: #b3c0cd;
+  }
+
+  .games.section-light .game-board :is(a, button):focus-visible {
+    outline-color: var(--gold);
+  }
+
+  .closing.section-light > span {
+    color: var(--gold);
+  }
+
+  .closing.section-light .outline {
+    color: var(--navy);
+    border-color: #8b7443;
+    background: transparent;
+  }
+
+  .closing.section-light .outline:hover {
+    background: #f3ead7;
+    border-color: #805c16;
+  }
+
+  .section.section-dark {
+    --navy: #101f32;
+    --cream: #f4efe5;
+    --gold: #e4b64c;
+    --muted: #a7b5c4;
+    color: var(--cream);
+    color-scheme: dark;
+  }
+
+  .lessons.section-dark {
+    background: #101f32;
+    border-block: 1px solid #e4b64c33;
+  }
+
+  .lessons.section-dark .section-heading h2 {
+    color: var(--cream);
+  }
+
+  .lessons.section-dark .section-heading h2 em,
+  .lessons.section-dark .eyebrow {
+    color: var(--gold);
+  }
+
+  .lessons.section-dark .section-heading p,
+  .lessons.section-dark .subscription-note .demo-note {
+    color: #b8c5d3;
+  }
+
+  .lessons.section-dark .grade,
+  .lessons.section-dark .trial-badge {
+    color: #f3ce76;
+    background: #e4b64c12;
+    border-color: #b28c3f;
+  }
+
+  .lessons.section-dark .filters button {
+    color: var(--cream);
+    background: transparent;
+    border-color: #6b7787;
+  }
+
+  .lessons.section-dark .filters button:hover {
+    background: #e4b64c12;
+    border-color: var(--gold);
+  }
+
+  .lessons.section-dark .filters button:is(.active, [aria-pressed="true"]) {
+    color: var(--navy);
+    background: var(--gold);
+    border-color: var(--gold);
+  }
+
+  .lessons.section-dark .lesson-card {
+    color: #101f32;
+    background: #faf8f3;
+    border-color: #d7d1c4;
+    color-scheme: light;
+  }
+
+  .lessons.section-dark .lesson-card:hover {
+    box-shadow: 0 12px 28px #0003;
+  }
+
+  .lessons.section-dark .lesson-card :is(a, button):focus-visible {
+    outline-color: #805c16;
+  }
+
+  .lessons.section-dark .subscription-note {
+    border-top-color: #e4b64c40;
+  }
+
+  .lessons.section-dark .subscription-note .text-link {
+    color: var(--gold);
+    border-bottom-color: #e4b64c80;
+  }
+
+  .lessons.section-dark .subscription-note .text-link:hover {
+    color: #f3ce76;
+    border-bottom-color: currentColor;
+  }
+}

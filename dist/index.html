@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101f32">
-  <meta name="description" content="SANA — комиксы и игры по истории, математике и физике для 8 класса. На русском и казахском языках.">
+  <meta name="description" content="SANA — учебные истории, комиксы и игры для любопытных учеников и вдохновлённых учителей. На русском и казахском языках.">
   <title>SANA — открытия в каждом уроке</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,7 +16,7 @@
   <a href="#main" class="skip-link" data-i18n="skip">Перейти к содержимому</a>
   <header>
     <a class="wordmark" href="#" aria-label="SANA">SANA<span aria-hidden="true">✦</span></a>
-    <nav data-i18n-aria="navLabel" aria-label="Основная навигация"><a href="#about" data-i18n="navAbout">О проекте</a><a href="#lessons" data-i18n="navLessons">Уроки-комиксы</a><a href="#games" data-i18n="navGames">Игры</a></nav>
+    <nav data-i18n-aria="navLabel" aria-label="Основная навигация"><a href="#about" data-i18n="navAbout">О проекте</a><a href="#features" data-i18n="navFeatures">Возможности</a><a href="#lessons" data-i18n="navLessons">Пробные уроки</a><a href="#games" data-i18n="navGames">Игры</a><a href="#pricing" data-i18n="navPricing">Тарифы</a></nav>
     <div class="header-actions flex items-center gap-4">
       <div class="language-switch" role="group" data-i18n-aria="languageLabel" aria-label="Язык сайта"><button type="button" data-language="ru" lang="ru" aria-pressed="true" aria-label="Русский">РУС</button><button type="button" data-language="kk" lang="kk" aria-pressed="false" aria-label="Қазақша">ҚАЗ</button></div>
       <a class="header-cta" href="#lessons"><span data-i18n="startLearning">Начать обучение</span> <span aria-hidden="true">↗</span></a>
@@ -27,18 +27,25 @@
       <div class="hero-lines" aria-hidden="true"><span></span><span></span><span></span></div>
       <div class="star s1" aria-hidden="true">✦</div><div class="star s2" aria-hidden="true">✧</div><div class="star s3" aria-hidden="true">✦</div><div class="hero-ring" aria-hidden="true"></div>
       <div class="hero-content">
-        <div class="eyebrow" data-i18n="heroEyebrow">ОБРАЗОВАТЕЛЬНАЯ ПЛАТФОРМА · 8 КЛАСС</div>
-        <div id="hero-bird" class="hero-bird" role="img" data-i18n-aria="birdLabel" aria-label="Белый голубь с раскрытыми крыльями"></div>
-        <h1 id="hero-title">SANA</h1><div class="star-divider" aria-hidden="true"><span>✦</span></div>
-        <h2><span data-i18n="heroHeading">Маленькие истории.</span><br><em data-i18n="heroHeadingEm">Большие открытия.</em></h2>
-        <p><span data-i18n="heroDescription">История, математика и физика — через комиксы и игру.</span><br><span data-i18n="heroDescriptionSecond">Разбирайтесь в сложном. Находите своё открытие.</span></p>
-        <a class="button cream" href="#lessons"><span data-i18n="openLessons">Открыть уроки</span><span aria-hidden="true">↗</span></a>
-        <a class="hero-secondary" href="#about"><span data-i18n="howItWorks">Как это работает</span> <span aria-hidden="true">↓</span></a>
+        <div class="hero-copy">
+          <h1 id="hero-title" data-i18n="heroEyebrow">ОБРАЗОВАТЕЛЬНАЯ ПЛАТФОРМА ДЛЯ УЧИТЕЛЕЙ</h1>
+          <p class="hero-description"><span data-i18n="heroDescription">Комиксы, игры и наглядные объяснения для ваших уроков.</span><br><span data-i18n="heroDescriptionSecond">Помогаем увлечь класс и сделать сложное понятным.</span></p>
+          <div class="hero-actions">
+            <a class="button cream" href="#lessons"><span data-i18n="openLessons">Открыть уроки</span><span aria-hidden="true">↗</span></a>
+            <a class="button outline hero-secondary" href="#about"><span data-i18n="howItWorks">Как это работает</span><span aria-hidden="true">↓</span></a>
+          </div>
+        </div>
+        <div class="hero-brand">
+          <div id="hero-bird" class="hero-bird" role="img" data-i18n-aria="birdLabel" aria-label="Белый голубь с раскрытыми крыльями"></div>
+          <div class="hero-wordmark">SANA</div>
+          <div class="star-divider" aria-hidden="true"><span>✦</span></div>
+          <p class="hero-tagline"><span data-i18n="heroHeading">Маленькие истории.</span><br><em data-i18n="heroHeadingEm">Большие истории.</em></p>
+        </div>
       </div>
-      <svg class="landscape" viewBox="0 0 1440 260" preserveAspectRatio="none" aria-hidden="true"><path fill="#243c57" d="M0 90Q150 240 340 160T620 200T950 120T1440 60V260H0Z"/><path fill="none" stroke="#d4c6ac" stroke-width="2" d="M-20 95Q140 230 350 180T650 216T940 150T1460 85"/><path fill="#172c43" d="M0 220 100 140 180 210 330 158 490 239 620 202 750 240 870 165 960 220 1120 145 1250 230 1440 150V260H0Z"/><path fill="#102034" d="M0 250 120 218 260 257 380 225 490 260 780 243 910 260 1100 220 1300 257 1440 227V260H0Z"/></svg>
+      <svg class="landscape" viewBox="0 0 1440 260" preserveAspectRatio="none" aria-hidden="true"><path fill="#243c57" d="M0 90Q150 240 340 160T620 200T950 120T1440 60V260H0Z"/><path fill="none" stroke="#e4b64c" stroke-width="2" d="M-20 95Q140 230 350 180T650 216T940 150T1460 85"/><path fill="#172c43" d="M0 220 100 140 180 210 330 158 490 239 620 202 750 240 870 165 960 220 1120 145 1250 230 1440 150V260H0Z"/><path fill="#102034" d="M0 250 120 218 260 257 380 225 490 260 780 243 910 260 1100 220 1300 257 1440 227V260H0Z"/></svg>
       <div class="hero-bottom"><span data-i18n="heroMotto">УЧИТЬСЯ · РАСТИ · ОТКРЫВАТЬ</span><a href="#about"><span data-i18n="scrollToExplore">Листайте к открытиям</span> ↓</a></div>
     </section>
-    <section id="about" class="about section" aria-labelledby="about-title">
+    <section id="about" class="about section section-light" aria-labelledby="about-title">
       <div><div class="eyebrow" data-i18n="aboutEyebrow">01 / НОВЫЙ ВЗГЛЯД НА УРОК</div><h2 id="about-title"><span data-i18n="aboutHeading">Сложное становится</span><br><em data-i18n="aboutHeadingEm">понятным.</em></h2></div>
       <div class="about-right"><p data-i18n="aboutDescription">За каждой формулой и датой есть история. Вместе с Алией и Данияром исследуйте события, находите закономерности и проверяйте идеи — шаг за шагом.</p>
         <ol class="steps" data-i18n-aria="stepsLabel" aria-label="Как устроено обучение">
@@ -48,13 +55,35 @@
         </ol>
       </div>
     </section>
-    <section id="lessons" class="lessons section" aria-labelledby="lessons-title">
-      <div class="section-heading"><div><div class="eyebrow" data-i18n="lessonsEyebrow">02 / УЧИМСЯ ЧЕРЕЗ ИСТОРИИ</div><h2 id="lessons-title"><span data-i18n="lessonsHeading">Каждый урок —</span> <em data-i18n="lessonsHeadingEm">приключение.</em></h2><p data-i18n="lessonsDescription">Выберите предмет и посмотрите на знакомую тему по-новому.</p></div><span class="grade" data-i18n="grade">8 класс</span></div>
-      <div class="filters" role="group" data-i18n-aria="subjectLabel" aria-label="Предмет"><button type="button" class="active" data-filter="all" aria-pressed="true" data-i18n="allSubjects">Все предметы</button><button type="button" data-filter="history" aria-pressed="false" data-i18n="history">История</button><button type="button" data-filter="math" aria-pressed="false" data-i18n="math">Математика</button><button type="button" data-filter="physics" aria-pressed="false" data-i18n="physics">Физика</button></div>
-      <div id="lesson-grid" class="lesson-grid"></div><p class="demo-note" data-i18n="demoNote">Первые три истории для 8 класса. Библиотека открытий будет расти.</p>
+    <section id="achievements" class="achievements section section-dark" aria-labelledby="achievements-title">
+      <div class="achievements-copy"><div class="eyebrow" data-i18n="achievementsEyebrow">02 / НАШИ ДОСТИЖЕНИЯ</div><h2 id="achievements-title"><span data-i18n="achievementsHeading">Большие открытия</span><br><em data-i18n="achievementsHeadingEm">начинаются вместе.</em></h2><p data-i18n="teachersDescription">С SANA уже познакомились 3 000 учителей. И это только начало нашей истории.</p></div>
+      <div class="achievement-number"><span class="stat-star" aria-hidden="true">✦</span><strong>3 000</strong><span data-i18n="teachersLabel">учителей с нами</span></div>
+      <div class="achievement-details"><div><strong>RU / ҚАЗ</strong><span data-i18n="achievementLanguages">Два языка — больше возможностей</span></div><div><strong data-i18n="achievementFormatValue">Комиксы + игры</strong><span data-i18n="achievementFormat">Знакомые темы в новом формате</span></div></div>
     </section>
-    <section id="games" class="games section" aria-labelledby="games-title">
-      <div class="game-copy"><div class="eyebrow" data-i18n="gamesEyebrow">03 / ЗАКРЕПЛЯЕМ ИГРАЯ</div><h2 id="games-title"><span data-i18n="gamesHeading">Знания растут</span><br><em data-i18n="gamesHeadingEm">в игре.</em></h2><p data-i18n="gamesDescription">Соберите свою карту открытий: восстановите события, раскройте математический код или запустите электрическую цепь.</p>
+    <section id="reviews" class="reviews section section-light" aria-labelledby="reviews-title">
+      <div class="section-intro"><div class="eyebrow" data-i18n="reviewsEyebrow">03 / ГОЛОСА УЧИТЕЛЕЙ</div><h2 id="reviews-title"><span data-i18n="reviewsHeading">Самое важное —</span><br><em data-i18n="reviewsHeadingEm">ваши впечатления.</em></h2><p data-i18n="reviewsDescription">Здесь учителя поделятся тем, как SANA помогает оживить урок.</p></div>
+      <div class="review-placeholder"><span class="quote-mark" aria-hidden="true">“</span><div><span class="status-label" data-i18n="reviewsSoon">Отзывы скоро появятся</span><p data-i18n="reviewsPlaceholder">Мы оставили это место для настоящих историй учителей. Скоро добавим их отзывы.</p><div class="review-rule" aria-hidden="true"><span></span><span>✦</span></div></div></div>
+    </section>
+    <section id="video" class="video-section section section-dark" aria-labelledby="video-title">
+      <div class="section-intro"><div class="eyebrow" data-i18n="videoEyebrow">04 / ЗНАКОМСТВО С SANA</div><h2 id="video-title"><span data-i18n="videoHeading">Увидеть,</span> <em data-i18n="videoHeadingEm">чтобы почувствовать.</em></h2><p data-i18n="videoDescription">Скоро расскажем о нашей идее, команде и новом взгляде на обучение.</p></div>
+      <div class="video-placeholder"><div class="video-orbit orbit-one" aria-hidden="true"></div><div class="video-orbit orbit-two" aria-hidden="true"></div><span class="video-star" aria-hidden="true">✦</span><div class="video-title-art" aria-hidden="true">SANA<span>THE STORY</span></div><div class="video-caption"><span data-i18n="videoCaption">История за каждым открытием</span><span class="status-label" data-i18n="videoSoon">Видео о нас · скоро</span></div></div>
+    </section>
+    <section id="features" class="features section section-light" aria-labelledby="features-title">
+      <div class="features-intro"><div class="eyebrow" data-i18n="featuresEyebrow">05 / О НАС И НАШИХ ВОЗМОЖНОСТЯХ</div><h2 id="features-title"><span data-i18n="featuresHeading">Больше интереса.</span><br><em data-i18n="featuresHeadingEm">Больше понимания.</em></h2><p data-i18n="featuresDescription">Мы создаём SANA, чтобы учителям было проще объяснять, а ученикам — увлечённо учиться. Соединяем истории, игру и живой разговор на уроке.</p><a class="text-link" href="#lessons"><span data-i18n="tryFree">Попробовать бесплатно</span><span aria-hidden="true">↗</span></a></div>
+      <div class="feature-list">
+        <article class="feature-item"><span class="feature-index" aria-hidden="true">01</span><div><h3 data-i18n="featureStoriesTitle">Истории вместо зубрёжки</h3><p data-i18n="featureStoriesText">Комиксы превращают формулы и даты в понятные сюжеты с героями и открытиями.</p></div></article>
+        <article class="feature-item"><span class="feature-index" aria-hidden="true">02</span><div><h3 data-i18n="featureGamesTitle">Практика через игру</h3><p data-i18n="featureGamesText">Небольшие викторины помогают закрепить тему. У каждого ответа есть объяснение.</p></div></article>
+        <article class="feature-item"><span class="feature-index" aria-hidden="true">03</span><div><h3 data-i18n="featureLanguagesTitle">Два языка. Одна идея.</h3><p data-i18n="featureLanguagesText">Переключайтесь между русским и казахским — истории и задания останутся на своём месте.</p></div></article>
+        <article class="feature-item"><span class="feature-index" aria-hidden="true">04</span><div><h3 data-i18n="featureClassTitle">Для живого урока</h3><p data-i18n="featureClassText">Читайте, обсуждайте и ищите ответы всем классом — в удобном для вас темпе.</p></div></article>
+      </div>
+    </section>
+    <section id="lessons" class="lessons section section-dark" aria-labelledby="lessons-title">
+      <div class="section-heading"><div><div class="eyebrow" data-i18n="lessonsEyebrow">06 / ПОПРОБУЙТЕ SANA</div><h2 id="lessons-title"><span data-i18n="lessonsHeading">Каждый урок —</span> <em data-i18n="lessonsHeadingEm">приключение.</em></h2><p data-i18n="lessonsDescription">Начните с бесплатных пробных уроков. Познакомьтесь с форматом и найдите свою историю.</p></div><span class="grade trial-badge" data-i18n="trialBadge">Бесплатные пробные уроки</span></div>
+      <div class="filters" role="group" data-i18n-aria="subjectLabel" aria-label="Предмет"><button type="button" class="active" data-filter="all" aria-pressed="true" data-i18n="allSubjects">Все предметы</button><button type="button" data-filter="history" aria-pressed="false" data-i18n="history">История</button><button type="button" data-filter="math" aria-pressed="false" data-i18n="math">Математика</button><button type="button" data-filter="physics" aria-pressed="false" data-i18n="physics">Физика</button></div>
+      <div id="lesson-grid" class="lesson-grid"></div><div class="subscription-note"><p class="demo-note" data-i18n="demoNote">Эти три урока доступны бесплатно. Новые темы и расширенная библиотека появятся в подписке.</p><a class="text-link" href="#pricing"><span data-i18n="subscriptionCta">Посмотреть тарифы</span><span aria-hidden="true">↗</span></a></div>
+    </section>
+    <section id="games" class="games section section-light" aria-labelledby="games-title">
+      <div class="game-copy"><div class="eyebrow" data-i18n="gamesEyebrow">07 / ЗАКРЕПЛЯЕМ ИГРАЯ</div><h2 id="games-title"><span data-i18n="gamesHeading">Знания растут</span><br><em data-i18n="gamesHeadingEm">в игре.</em></h2><p data-i18n="gamesDescription">Соберите свою карту открытий: восстановите события, раскройте математический код или запустите электрическую цепь.</p>
         <div id="game-tabs" class="game-tabs" role="group" data-i18n-aria="gameSubjectLabel" aria-label="Выберите игру"></div><p id="game-description"></p><div class="game-meta"><span data-i18n="grade">8 класс</span><span data-i18n="fiveQuestions">5 заданий</span></div>
         <p class="teacher-tip"><span data-i18n="teacherLabel">ДЛЯ УЧИТЕЛЯ И КЛАССА</span><span data-i18n="teacherTip">Обсудите ответ перед выбором. Ошибаться можно: к каждому заданию есть объяснение.</span></p>
       </div>
@@ -63,9 +92,19 @@
         <div id="game-stars" class="game-stars" aria-hidden="true"></div><div id="game-bird" class="game-bird" aria-hidden="true"></div><p id="game-mission" class="game-mission"></p><h3 id="game-question" tabindex="-1"></h3><div id="game-answers" class="answers"></div><p id="game-feedback" role="status" aria-live="polite" aria-atomic="true"></p><button type="button" id="game-next" class="button cream" hidden></button>
       </div>
     </section>
-    <section class="closing"><span aria-hidden="true">✦</span><h2><span data-i18n="closingHeading">Пусть каждый урок</span><br><span data-i18n="closingHeadingSecond">начинается с любопытства.</span></h2><a class="button outline" href="#lessons"><span data-i18n="chooseStory">Выбрать историю</span> <span aria-hidden="true">↗</span></a></section>
+    <section id="pricing" class="pricing section section-dark" aria-labelledby="pricing-title">
+      <div class="pricing-intro"><div class="eyebrow" data-i18n="pricingEyebrow">08 / ТАРИФЫ</div><h2 id="pricing-title"><span data-i18n="pricingHeading">Ваш масштаб.</span> <em data-i18n="pricingHeadingEm">Ваши возможности.</em></h2><p data-i18n="pricingDescription">От первых идей до целой библиотеки уроков. Выберите свой формат — подписка скоро появится.</p><span class="status-label" data-i18n="pricingPlanned">Планируемые возможности подписки</span></div>
+      <div class="pricing-grid">
+        <article class="plan-card" aria-labelledby="basic-title"><div class="plan-symbol" aria-hidden="true">✧</div><h3 id="basic-title" data-i18n="basicName">Обычный</h3><p class="plan-tagline" data-i18n="basicTagline">Всё начинается с первой идеи.</p><div class="token-amount"><strong>7 000</strong><span data-i18n="tokensUnit">токенов</span></div><ul class="plan-features"><li data-i18n="basicFeature">7 000 токенов</li></ul><button type="button" class="button plan-button" data-plan="basic"><span data-i18n="planDetails">Подробнее о тарифе</span><span aria-hidden="true">↗</span></button></article>
+        <article class="plan-card plan-featured" aria-labelledby="pro-title"><div class="plan-card-top"><span class="plan-symbol" aria-hidden="true">✦</span><span class="plan-badge" data-i18n="planPopular">Больше возможностей</span></div><h3 id="pro-title" data-i18n="proName">Про</h3><p class="plan-tagline" data-i18n="proTagline">Больше игры в каждом уроке.</p><div class="token-amount"><strong>10 000</strong><span data-i18n="tokensUnit">токенов</span></div><ul class="plan-features"><li data-i18n="proFeatureGames">Интерактивные игры</li><li data-i18n="proFeatureQuizzes">Конструктор викторин</li><li data-i18n="proFeatureTemplates">Шаблоны уроков</li></ul><button type="button" class="button cream plan-button" data-plan="pro"><span data-i18n="planDetails">Подробнее о тарифе</span><span aria-hidden="true">↗</span></button></article>
+        <article class="plan-card" aria-labelledby="plus-title"><div class="plan-symbol" aria-hidden="true">✦ ✧</div><h3 id="plus-title" data-i18n="plusName">Плюс</h3><p class="plan-tagline" data-i18n="plusTagline">Пространство для больших замыслов.</p><div class="token-amount"><strong>13 000</strong><span data-i18n="tokensUnit">токенов</span></div><ul class="plan-features"><li data-i18n="plusFeatureAll">Всё из тарифа «Про»</li><li data-i18n="plusFeatureScenarios">Персональные сценарии уроков</li><li data-i18n="plusFeatureLibrary">Общая библиотека команды</li><li data-i18n="plusFeatureExport">Экспорт материалов в PDF</li></ul><button type="button" class="button plan-button" data-plan="plus"><span data-i18n="planDetails">Подробнее о тарифе</span><span aria-hidden="true">↗</span></button></article>
+      </div>
+      <p class="token-explanation" data-i18n="tokenExplanation">Токены — запас для работы с учебными материалами SANA. Подробные правила расходования опубликуем к запуску подписки.</p>
+    </section>
+    <section class="closing section-light"><span aria-hidden="true">✦</span><h2><span data-i18n="closingHeading">Пусть каждый урок</span><br><span data-i18n="closingHeadingSecond">начинается с любопытства.</span></h2><a class="button outline" href="#lessons"><span data-i18n="chooseStory">Выбрать историю</span> <span aria-hidden="true">↗</span></a></section>
   </main>
-  <footer><div><a class="wordmark" href="#">SANA<span aria-hidden="true">✦</span></a><p data-i18n="footerMotto">Учиться. Расти. Открывать.</p></div><nav data-i18n-aria="footerNavLabel" aria-label="Навигация в подвале"><a href="#about" data-i18n="navAbout">О проекте</a><a href="#lessons" data-i18n="navLessons">Уроки-комиксы</a><a href="#games" data-i18n="navGames">Игры</a></nav><span>© 2026 SANA<br><span data-i18n="footerNote">Для больших открытий · 8 класс</span></span></footer>
+  <footer><div><a class="wordmark" href="#">SANA<span aria-hidden="true">✦</span></a><p data-i18n="footerMotto">Учиться. Расти. Открывать.</p></div><nav data-i18n-aria="footerNavLabel" aria-label="Навигация в подвале"><a href="#about" data-i18n="navAbout">О проекте</a><a href="#features" data-i18n="navFeatures">Возможности</a><a href="#lessons" data-i18n="navLessons">Пробные уроки</a><a href="#pricing" data-i18n="navPricing">Тарифы</a></nav><span>© 2026 SANA<br><span data-i18n="footerNote">Для больших открытий</span></span></footer>
+  <dialog id="plan-dialog" class="plan-dialog" aria-labelledby="plan-dialog-title" aria-describedby="plan-dialog-note"><div class="modal-top"><span class="eyebrow" data-i18n="planDialogEyebrow">ПОДПИСКА SANA</span><button type="button" id="close-plan" data-i18n-aria="closePlan" aria-label="Закрыть описание тарифа">×</button></div><h2 id="plan-dialog-title"></h2><p id="plan-dialog-tokens" class="plan-dialog-tokens"></p><ul id="plan-dialog-features" class="plan-features"></ul><p id="plan-dialog-note" data-i18n="planDialogNote">Подключение подписки скоро появится. Пока это предварительный состав тарифов — познакомьтесь с SANA на бесплатных уроках.</p><a id="plan-try-free" class="button cream" href="#lessons" data-i18n="tryFree">Попробовать бесплатно</a></dialog>
   <dialog id="comic" aria-labelledby="comic-label"><div class="modal-top"><span id="comic-label"></span><div class="flex items-center gap-3"><div class="language-switch" role="group" data-i18n-aria="languageLabel" aria-label="Язык сайта"><button type="button" data-language="ru" lang="ru" aria-label="Русский" aria-pressed="true">РУС</button><button type="button" data-language="kk" lang="kk" aria-label="Қазақша" aria-pressed="false">ҚАЗ</button></div><button type="button" id="close-comic" data-i18n-aria="closeComic" aria-label="Закрыть комикс">×</button></div></div><div id="comic-content" aria-live="polite"></div><div class="comic-controls"><button type="button" id="prev-page" data-i18n="previous">← Назад</button><span id="page-count"></span><button type="button" id="next-page"></button></div></dialog>
   <noscript><p style="padding:24px;text-align:center">Для комиксов, игр и выбора языка включите JavaScript. Комикстер, ойындар және тілді таңдау үшін JavaScript қосыңыз.</p></noscript>
 </body>
