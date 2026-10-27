@@ -5,6 +5,7 @@
 @import "./enhancements.css";
 @import "./showcase.css";
 @import "./reviews.css";
+@import "./platform.css";
 @source "../dist/*.html";
 @source "../dist/*.js";
 

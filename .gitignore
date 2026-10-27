@@ -3,3 +3,17 @@ node_modules/
 *.log
 .DS_Store
 Thumbs.db
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.coverage
+.data/
+*.egg-info/
+dist/vendor/
+test-results/
+playwright-report/

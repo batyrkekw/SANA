@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#101f32" />
+    <title>SANA — вход</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Manrope:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <script type="module" src="auth.js"></script>
+  </head>
+  <body class="platform auth-page">
+    <a href="#auth-content" class="skip-link" data-i18n="skip">Перейти к содержимому</a>
+    <aside class="auth-brand">
+      <a class="wordmark" href="/">SANA <span aria-hidden="true">✦</span></a>
+      <div id="auth-bird" aria-hidden="true"></div>
+      <h1 data-i18n="authBrand">Каждый урок начинается с любопытства.</h1>
+      <p data-i18n="authIntro">Создавайте материалы, которые хочется обсуждать.</p>
+      <a class="p-back" href="/" data-i18n="backHome">На главную</a>
+    </aside>
+    <main id="auth-content" class="auth-main">
+      <div class="p-language" role="group" aria-label="Русский / Қазақша">
+        <button type="button" data-language="ru" aria-pressed="true">РУС</button
+        ><button type="button" data-language="kk" aria-pressed="false">ҚАЗ</button>
+      </div>
+      <div class="auth-form-wrap">
+        <p class="p-eyebrow">SANA</p>
+        <h2 id="auth-heading" data-i18n="authTitle">Рады видеть вас снова.</h2>
+        <p id="auth-notice" class="p-notice" role="status" aria-live="polite" hidden></p>
+        <form id="auth-form" class="p-form" hidden>
+          <div id="name-field" hidden>
+            <label for="display-name" data-i18n="displayName">Ваше имя</label
+            ><input id="display-name" name="name" autocomplete="name" maxlength="80" />
+          </div>
+          <div id="email-field">
+            <label for="email" data-i18n="email">Email</label
+            ><input
+              id="email"
+              name="email"
+              type="email"
+              autocomplete="email"
+              required
+              maxlength="254"
+            />
+          </div>
+          <div id="password-field">
+            <label for="password" data-i18n="password">Пароль</label
+            ><input
+              id="password"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              required
+              maxlength="128"
+              aria-describedby="password-hint"
+            /><small id="password-hint" data-i18n="passwordHint" hidden
+              >Не менее 10 символов.</small
+            >
+          </div>
+          <div id="confirm-field" hidden>
+            <label for="confirm-password" data-i18n="confirmPassword">Повторите пароль</label
+            ><input
+              id="confirm-password"
+              name="confirmation"
+              type="password"
+              autocomplete="new-password"
+              maxlength="128"
+            />
+          </div>
+          <button id="auth-submit" class="p-button primary" type="submit" data-i18n="signIn">
+            Войти
+          </button>
+        </form>
+        <button
+          id="google"
+          class="p-button google-button"
+          type="button"
+          data-i18n="googleSignIn"
+          hidden
+        >
+          Продолжить с Google
+        </button>
+        <nav
+          id="auth-links"
+          class="auth-links"
+          data-i18n-aria="account"
+          aria-label="Аккаунт"
+          hidden
+        >
+          <a href="#login" data-i18n="signIn">Войти</a
+          ><a href="#register" data-i18n="signUp">Создать аккаунт</a
+          ><a href="#reset" data-i18n="forgotPassword">Забыли пароль?</a>
+        </nav>
+        <a class="p-link" href="/#lessons" data-i18n="tryFree">Попробовать бесплатно</a>
+      </div>
+    </main>
+  </body>
+</html>

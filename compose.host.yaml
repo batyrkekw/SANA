@@ -1,0 +1,8 @@
+# Host Python/MPS development: publish infrastructure only on loopback.
+services:
+  db:
+    ports: ["127.0.0.1:5432:5432"]
+    networks: [default, data]
+  redis:
+    ports: ["127.0.0.1:6379:6379"]
+    networks: [default, data]

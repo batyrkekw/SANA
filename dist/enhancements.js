@@ -31,11 +31,8 @@ export function setupEnhancements(t) {
 
   function render() {
     const rows = [
-      ['comparisonTokens', ...Object.values(PLANS).map(plan => new Intl.NumberFormat(document.documentElement.lang).format(plan.tokens))],
-      ['comparisonGames', false, true, true],
-      ['comparisonScenarios', false, false, true],
-      ['comparisonLibrary', false, false, true],
-      ['comparisonExport', false, false, true],
+      ['initialAllowance', ...Object.values(PLANS).map(plan => plan.tokens === null ? '—' : new Intl.NumberFormat(document.documentElement.lang).format(plan.tokens))],
+      ...['lesson','quiz','comic','flashcards','image'].map(kind => [kind, ...Object.values(PLANS).map(plan => plan.features.includes(kind))]),
     ];
     document.querySelector('#comparison-body').replaceChildren(...rows.map(([key, ...values]) => {
       const row = document.createElement('tr');
@@ -55,5 +52,6 @@ export function setupEnhancements(t) {
       return row;
     }));
   }
+  window.addEventListener('sana:plans',render);
   return { render };
 }

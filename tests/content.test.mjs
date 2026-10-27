@@ -5,7 +5,8 @@ import { LESSONS } from '../dist/content.js';
 import { UI, normalizeLanguage, translate } from '../dist/i18n.js';
 
 const languages = ['ru', 'kk'];
-const html = await readFile(new URL('../dist/index.html', import.meta.url), 'utf8');
+const html = (await Promise.all(['index.html', 'auth.html', 'account.html'].map(name =>
+  readFile(new URL(`../dist/${name}`, import.meta.url), 'utf8')))).join('\n');
 
 function assertLocalized(value, label) {
   assert.ok(value && typeof value === 'object', `${label}: localized object required`);

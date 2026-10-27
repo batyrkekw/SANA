@@ -1,0 +1,69 @@
+[
+  {
+    "code": "basic",
+    "name": {
+      "ru": "Обычный",
+      "kk": "Қарапайым"
+    },
+    "initial_tokens": 100,
+    "limits": {
+      "kinds": [
+        "lesson",
+        "quiz",
+        "flashcards"
+      ],
+      "images": false,
+      "max_prompt": 1500,
+      "max_length": 4,
+      "max_panels": 0,
+      "max_images": 0,
+      "max_tokens": 100
+    }
+  },
+  {
+    "code": "pro",
+    "name": {
+      "ru": "Про",
+      "kk": "Про"
+    },
+    "initial_tokens": 1000,
+    "limits": {
+      "kinds": [
+        "lesson",
+        "quiz",
+        "flashcards",
+        "comic",
+        "image"
+      ],
+      "images": true,
+      "max_prompt": 3000,
+      "max_length": 8,
+      "max_panels": 4,
+      "max_images": 2,
+      "max_tokens": 1000
+    }
+  },
+  {
+    "code": "plus",
+    "name": {
+      "ru": "Плюс",
+      "kk": "Плюс"
+    },
+    "initial_tokens": 5000,
+    "limits": {
+      "kinds": [
+        "lesson",
+        "quiz",
+        "flashcards",
+        "comic",
+        "image"
+      ],
+      "images": true,
+      "max_prompt": 6000,
+      "max_length": 12,
+      "max_panels": 8,
+      "max_images": 4,
+      "max_tokens": 5000
+    }
+  }
+]

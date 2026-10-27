@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#101f32" />
+    <title>SANA — личный кабинет</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Manrope:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <script type="module" src="account.js"></script>
+  </head>
+  <body class="platform account-page">
+    <a href="#workspace" class="skip-link" data-i18n="skip">Перейти к содержимому</a>
+    <aside class="account-sidebar">
+      <a class="wordmark" href="/">SANA <span aria-hidden="true">✦</span></a>
+      <p class="p-eyebrow" data-i18n="workspace">ВАШЕ ПРОСТРАНСТВО</p>
+      <nav class="account-nav" data-i18n-aria="accountNav" aria-label="Разделы кабинета">
+        <a href="#overview" data-i18n="dashboardHome">Обзор</a
+        ><a href="#materials" data-i18n="myMaterials">Мои материалы</a
+        ><a href="#create" data-i18n="generate">Создать материал</a
+        ><a href="#jobs" data-i18n="generationHistory">История генераций</a
+        ><a href="#plan" data-i18n="myPlan">Мой тариф</a
+        ><a href="#tokens" data-i18n="tokenHistory">Токены и использование</a
+        ><a href="#settings" data-i18n="accountSettings">Настройки</a>
+      </nav>
+      <a class="p-back" href="/#lessons" data-i18n="openLessons">Открыть уроки</a>
+    </aside>
+    <div class="account-body">
+      <div class="account-topbar">
+        <span id="top-plan"></span><span id="top-balance"></span>
+        <div class="p-language" role="group" aria-label="Русский / Қазақша">
+          <button type="button" data-language="ru" aria-pressed="true">РУС</button
+          ><button type="button" data-language="kk" aria-pressed="false">ҚАЗ</button>
+        </div>
+        <details class="profile-menu">
+          <summary>
+            <span id="avatar" aria-hidden="true">S</span
+            ><span data-i18n="account">Личный кабинет</span>
+          </summary>
+          <a href="#settings" data-i18n="accountSettings">Настройки</a
+          ><button type="button" id="logout" data-i18n="logout">Выйти</button>
+        </details>
+      </div>
+      <main id="workspace" tabindex="-1">
+        <p id="workspace-status" class="p-notice" role="status" aria-live="polite" hidden></p>
+        <div id="workspace-content"><p data-i18n="loading">Загрузка…</p></div>
+      </main>
+    </div>
+    <dialog id="confirm-dialog" class="p-dialog" aria-labelledby="dialog-title">
+      <form id="dialog-form" class="p-form">
+        <h2 id="dialog-title"></h2>
+        <p id="dialog-description"></p>
+        <label id="rename-label" for="rename-value" data-i18n="titleLabel">Название</label
+        ><input id="rename-value" name="title" maxlength="200" />
+        <p id="dialog-error" class="p-notice is-error" role="alert" hidden></p>
+        <div class="p-actions">
+          <button type="button" id="dialog-cancel" class="p-button" data-i18n="cancel">
+            Отмена</button
+          ><button type="submit" id="dialog-submit" class="p-button primary" data-i18n="save">
+            Сохранить
+          </button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>

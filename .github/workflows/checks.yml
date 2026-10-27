@@ -1,0 +1,45 @@
+name: checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: sana
+          POSTGRES_PASSWORD: sana_test_only
+          POSTGRES_DB: sana_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U sana -d sana_test"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgresql+psycopg://sana:sana_test_only@127.0.0.1:5432/sana_test
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: 0.12.10
+      - run: uv sync --frozen --python 3.12
+      - run: uv run --no-sync ruff check app tests alembic scripts
+      - run: uv run --no-sync ruff format --check app tests alembic scripts
+      - run: uv run --no-sync pytest -q
