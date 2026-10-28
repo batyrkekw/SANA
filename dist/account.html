@@ -48,7 +48,12 @@
       </div>
       <main id="workspace" tabindex="-1">
         <p id="workspace-status" class="p-notice" role="status" aria-live="polite" hidden></p>
-        <div id="workspace-content"><p data-i18n="loading">Загрузка…</p></div>
+        <div id="workspace-content" aria-busy="true">
+          <div class="workspace-skeleton" aria-hidden="true">
+            <i></i><i></i>
+            <div><i></i><i></i><i></i></div>
+          </div>
+        </div>
       </main>
     </div>
     <dialog id="confirm-dialog" class="p-dialog" aria-labelledby="dialog-title">

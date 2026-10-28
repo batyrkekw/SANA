@@ -1,4 +1,4 @@
-import { api, connect, clearReads } from './session.js';
+import { api, connect, clearReads, peekRead } from './session.js';
 import {
   t,
   lang,
@@ -19,6 +19,99 @@ let dashboard,
   pollTimer,
   dialogAction;
 let assets = [];
+let renderedKey,
+  renderedHTML,
+  rendering = false,
+  currentPaths = new Set();
+let prefetchTimer,
+  prefetching = false,
+  prefetchAgain = false;
+const dirtyForms = new WeakSet();
+content.addEventListener('input', (event) => {
+  if (event.target.form) dirtyForms.add(event.target.form);
+});
+const freshness = (path) =>
+  path === '/plans' ? 300000 : path.startsWith('/generations') ? 4000 : 15000;
+const cachedRead = (path, options = {}) => api(path, { cacheFor: freshness(path), ...options });
+const materialsPath = () => `/materials?${new URLSearchParams({ ...filters, page: materialPage })}`;
+function pathFor(view) {
+  return (
+    {
+      overview: '/dashboard',
+      materials: materialsPath(),
+      create: '/ai/status',
+      jobs: `/generations?page=${jobPage}`,
+      tokens: `/me/tokens/transactions?page=${tokenPage}`,
+      plan: '/plans',
+    }[view] ||
+    (view.startsWith('material/') ? `/materials/${encodeURIComponent(view.slice(9))}` : null)
+  );
+}
+const skeleton = () =>
+  `<div class="workspace-skeleton" aria-hidden="true"><i></i><i></i><div><i></i><i></i><i></i></div></div>`;
+// One background fetch at a time; foreground navigation can join the same request.
+function schedulePrefetch() {
+  clearTimeout(prefetchTimer);
+  prefetchTimer = setTimeout(() => void prefetch(), 300);
+}
+async function prefetch() {
+  if (prefetching) {
+    prefetchAgain = true;
+    return;
+  }
+  if (document.hidden || !dashboard) return;
+  prefetching = true;
+  try {
+    const paths = [
+      materialsPath(),
+      '/ai/status',
+      `/generations?page=${jobPage}`,
+      `/me/tokens/transactions?page=${tokenPage}`,
+      '/plans',
+      '/dashboard',
+      ...dashboard.recent_materials.slice(0, 3).map((item) => `/materials/${item.id}`),
+    ];
+    for (const path of paths) {
+      if (document.hidden) break;
+      await cachedRead(path, { waitForFresh: true });
+    }
+  } catch {
+    /* Retry on navigation/online/focus; prefetch never blocks the page. */
+  } finally {
+    prefetching = false;
+    if (prefetchAgain) {
+      prefetchAgain = false;
+      schedulePrefetch();
+    }
+  }
+}
+async function refreshVisible() {
+  if (document.hidden) return;
+  try {
+    const path = pathFor(route());
+    if (path) await cachedRead(path, { force: true });
+    if (path !== '/dashboard') await cachedRead('/dashboard', { force: true });
+  } catch (error) {
+    if (error.name !== 'AbortError') showCachedWarning();
+  } finally {
+    scheduleJobPoll();
+  }
+}
+function scheduleJobPoll() {
+  clearTimeout(pollTimer);
+  const jobs = peekRead(`/generations?page=${jobPage}`);
+  if (
+    route() === 'jobs' &&
+    jobs?.items.some((job) => ['queued', 'processing'].includes(job.status))
+  )
+    pollTimer = setTimeout(() => void refreshVisible(), 4000);
+}
+function showCachedWarning() {
+  if (!renderedKey) return;
+  status.dataset.cacheWarning = 'true';
+  notice(status, t('cachedDataNotice'));
+}
+
 let materialPage = 1,
   jobPage = 1,
   tokenPage = 1;
@@ -62,36 +155,43 @@ function topbar() {
     .slice(0, 2)
     .toUpperCase();
 }
-async function refreshDashboard(read = api) {
+async function refreshDashboard(read = cachedRead) {
   dashboard = await read('/dashboard', { cacheFor: 15000 });
   topbar();
 }
 function route() {
   return location.hash.slice(1).split('?')[0] || 'overview';
 }
-async function render({ reuseDashboard = false } = {}) {
+async function render({ reuseDashboard = false, background = false } = {}) {
   const version = ++routeVersion;
   routeController?.abort();
   const controller = (routeController = new AbortController());
+  currentPaths = new Set();
   const read = async (path) => {
-    const cacheFor = path.startsWith('/generations') || dashboard?.tokens.reserved
-      ? 0 : path === '/plans' ? 300000 : 15000;
-    const data = await api(path, { signal: controller.signal, cacheFor });
+    currentPaths.add(path);
+    const data = await cachedRead(path, { signal: controller.signal });
     controller.signal.throwIfAborted();
     return data;
   };
-  clearTimeout(pollTimer);
-  assets.forEach(URL.revokeObjectURL);
-  assets = [];
-  notice(status, '');
+  if (!background) {
+    notice(status, '');
+    delete status.dataset.cacheWarning;
+  }
   setLanguage(lang());
   const view = route();
+  const key = JSON.stringify([location.hash, lang(), materialPage, jobPage, tokenPage, filters]);
+  const path = pathFor(view);
+  if (path) currentPaths.add(path);
   document.querySelectorAll('.account-nav a').forEach((link) => {
     if (link.hash === `#${view.split('/')[0]}`) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
   });
-  content.setAttribute('aria-busy', 'true');
-  content.innerHTML = `<p>${e(t('loading'))}</p>`;
+  rendering = true;
+  // A warm route is painted in the same frame. Only a never-loaded route needs a skeleton.
+  if (!background && key !== renderedKey && path && !peekRead(path) && view !== 'create') {
+    content.setAttribute('aria-busy', 'true');
+    content.innerHTML = skeleton();
+  }
   try {
     let html;
     if (view === 'overview') {
@@ -106,9 +206,7 @@ async function render({ reuseDashboard = false } = {}) {
         <div class="p-section-title"><h2>${e(t('recentMaterials'))}</h2><a href="#materials">${e(t('viewAll'))} ↗</a></div>` +
         (dashboard.recent_materials.length ? cards(dashboard.recent_materials) : empty());
     } else if (view === 'materials') {
-      const data = await read(
-        `/materials?${new URLSearchParams({ ...filters, page: materialPage })}`
-      );
+      const data = await read(materialsPath());
       html =
         title(t('myMaterials')) +
         `<form id="filters" class="p-form filters">${input('search', 'searchMaterials', filters.search, 'maxlength="100"')}${select('subject', 'subjectFilter', option('', t('allSubjects')) + data.subjects.map((s) => option(s, s, s === filters.subject)).join(''))}${select('kind', 'materialType', option('', t('allTypes')) + kinds.map((k) => option(k, t(k), k === filters.kind)).join(''))}${select('order', 'sortOrder', option('desc', t('newest'), filters.order === 'desc') + option('asc', t('oldest'), filters.order === 'asc'))}<button class="p-button" type="submit">${e(t('applyFilters'))}</button></form>` +
@@ -117,16 +215,11 @@ async function render({ reuseDashboard = false } = {}) {
           : `<div class="p-empty"><p>${e(t('noResults'))}</p>${button(t('generate'), '#create')}</div>`) +
         pagination(data, 'materials');
     } else if (view === 'create') {
-      html = await generator(read);
+      html = generator(peekRead('/ai/status'));
+      void cachedRead('/ai/status').catch(() => {});
     } else if (view === 'jobs') {
       const data = await read(`/generations?page=${jobPage}`);
-      // Completion can happen in another process/tab; discard pre-generation reads.
-      clearReads();
       html = title(t('generationHistory')) + jobsHTML(data) + pagination(data, 'jobs');
-      if (data.items.some((job) => ['queued', 'processing'].includes(job.status)))
-        pollTimer = setTimeout(() => {
-          if (route() === 'jobs') void render();
-        }, 4000);
     } else if (view === 'tokens') {
       const data = await read(`/me/tokens/transactions?page=${tokenPage}`);
       dashboard.tokens = data.tokens;
@@ -155,14 +248,32 @@ async function render({ reuseDashboard = false } = {}) {
       return;
     }
     if (version !== routeVersion) return;
-    content.innerHTML = html;
-    void loadAssets(version, controller.signal);
-    if (view === 'create') wireGeneration();
+    if (!background || html !== renderedHTML) {
+      assets.forEach(URL.revokeObjectURL);
+      assets = [];
+      content.innerHTML = html;
+      void loadAssets(version, controller.signal);
+      if (view === 'create') wireGeneration();
+    }
+    renderedKey = key;
+    renderedHTML = html;
+    scheduleJobPoll();
+    if (!background) schedulePrefetch();
   } catch (error) {
-    if (version === routeVersion && !controller.signal.aborted)
+    if (version === routeVersion && !controller.signal.aborted && error.name === 'AbortError')
+      setTimeout(() => {
+        if (version === routeVersion) void render();
+      }, 0);
+    if (version === routeVersion && !controller.signal.aborted && error.name !== 'AbortError') {
       notice(status, errorText(error), true);
+      if (content.querySelector('.workspace-skeleton'))
+        content.innerHTML = `<button class="p-button" data-retry>${e(t('retry'))}</button>`;
+    }
   } finally {
-    if (version === routeVersion) content.removeAttribute('aria-busy');
+    if (version === routeVersion) {
+      rendering = false;
+      content.removeAttribute('aria-busy');
+    }
   }
 }
 function empty() {
@@ -173,8 +284,7 @@ function jobsHTML(data) {
     ? `<div class="job-list">${data.items.map((job) => `<article class="job-row"><div><span class="p-badge ${job.status}" role="status">${e(t(job.status))}</span><h3>${e(job.request.topic)}</h3><p>${e(t(job.request.kind))} · ${e(date(job.created_at))} · ${number(job.cost)} ${e(t('tokensUnit'))}</p>${job.error_code ? `<p class="is-error">${e(errorText({ code: job.error_code }))}</p>` : ''}</div><div>${job.material_id ? button(t('openMaterial'), `#material/${job.material_id}`, true) : ''}${job.can_cancel ? `<button class="p-button" data-cancel-job="${job.id}">${e(t('cancelJob'))}</button>` : ''}</div></article>`).join('')}</div>`
     : `<div class="p-empty"><p>${e(t('noJobs'))}</p>${button(t('generate'), '#create')}</div>`;
 }
-async function generator(read = api) {
-  const state = await read('/ai/status');
+function generator(state) {
   const chosen = new URLSearchParams(location.hash.split('?')[1] || '').get('kind') || 'lesson';
   return (
     title(t('generate'), t('generationIntro')) +
@@ -186,7 +296,7 @@ async function generator(read = api) {
   <label class="p-checkbox"><input type="checkbox" name="include_images" id="include_images">${e(t('includeImages'))}</label>
   <div id="image-options" class="p-form-grid" hidden>${input('image_count', 'imageCount', '1', 'type="number" min="1" max="8"')}${select('style', 'imageStyle', ['educational', 'cartoon', 'infographic', 'historical', 'scientific'].map((s) => option(s, t(s))).join(''))}${select('aspect_ratio', 'aspectRatio', ['1:1', '4:3', '3:4'].map((s) => option(s, s)).join(''))}</div>
   <p id="quote-notice" class="p-notice" role="status">${e(t('quoteHint'))}</p><div class="p-actions"><button id="get-quote" type="button" class="p-button">${e(t('getQuote'))}</button><button id="generate-submit" type="submit" class="p-button primary" disabled>${e(t('generate'))}</button></div></form>
-  <aside class="generation-note"><span aria-hidden="true">✦</span><h2>${e(t('modelStatus'))}</h2><p>${e(t('textModel'))}<strong>${e(t(state.text.status))}</strong></p><p>${e(t('imageModel'))}<strong>${e(t(state.image.status))}</strong></p><hr><p>${e(t('generatedReview'))}</p><p>${e(t('developmentPlans'))}</p></aside></div>`
+  <aside class="generation-note"><span aria-hidden="true">✦</span><h2>${e(t('modelStatus'))}</h2><p>${e(t('textModel'))}<strong>${state ? e(t(state.text.status)) : '—'}</strong></p><p>${e(t('imageModel'))}<strong>${state ? e(t(state.image.status)) : '—'}</strong></p><hr><p>${e(t('generatedReview'))}</p><p>${e(t('developmentPlans'))}</p></aside></div>`
   );
 }
 function wireGeneration() {
@@ -328,6 +438,10 @@ content.addEventListener('submit', (event) => {
   }
 });
 content.addEventListener('click', async (event) => {
+  if (event.target.closest('[data-retry]')) {
+    void render();
+    return;
+  }
   const page = event.target.closest('[data-page]');
   if (page) {
     if (page.dataset.list === 'materials') materialPage = Number(page.dataset.page);
@@ -412,6 +526,62 @@ document.querySelectorAll('[data-language]').forEach((button) =>
     }
   })
 );
+window.addEventListener('sana:read', ({ detail: { path, data, previous } }) => {
+  if (path === '/dashboard') {
+    dashboard = data;
+    topbar();
+  }
+  const changed = JSON.stringify(data) !== JSON.stringify(previous);
+  if (path.startsWith('/generations?') && previous && changed) {
+    clearReads(['/dashboard', '/materials', '/me/tokens']);
+    schedulePrefetch();
+  }
+  if (status.dataset.cacheWarning && currentPaths.has(path)) {
+    notice(status, '');
+    delete status.dataset.cacheWarning;
+  }
+  if (route() === 'create' && path === '/ai/status') {
+    content.querySelectorAll('.generation-note strong').forEach((node, index) => {
+      node.textContent = t(index ? data.image.status : data.text.status);
+    });
+    return;
+  }
+  if (
+    !changed ||
+    rendering ||
+    !currentPaths.has(path) ||
+    route() === 'settings' ||
+    route() === 'create'
+  )
+    return;
+  if ([...content.querySelectorAll('form')].some((form) => dirtyForms.has(form))) return;
+  void render({ background: true, reuseDashboard: true });
+});
+window.addEventListener('sana:read-error', ({ detail: { path, error } }) => {
+  if (!currentPaths.has(path)) return;
+  if ([403, 404].includes(error.status)) {
+    content.replaceChildren();
+    renderedKey = null;
+    notice(status, errorText(error), true);
+  } else showCachedWarning();
+});
+window.addEventListener('sana:invalidate', schedulePrefetch);
+window.addEventListener('online', () => {
+  void refreshVisible();
+  schedulePrefetch();
+});
+window.addEventListener('focus', () => {
+  void refreshVisible();
+  schedulePrefetch();
+});
+// Hover/keyboard intent warms a target even before it is clicked.
+for (const event of ['pointerover', 'focusin'])
+  document.addEventListener(event, (event) => {
+    const link = event.target.closest('a[href^="#"]');
+    if (!link || !dashboard) return;
+    const path = pathFor(link.hash.slice(1).split('?')[0]);
+    if (path) void cachedRead(path).catch(() => {});
+  });
 window.addEventListener('hashchange', () => {
   void render();
   document.querySelector('#workspace').focus({ preventScroll: true });
@@ -437,8 +607,10 @@ try {
     await refreshDashboard();
     setLanguage(dashboard.profile.language);
     topbar();
-    client.auth.onAuthStateChange((event) => {
+    const signedInUser = session.user.id;
+    client.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') location.replace('/auth.html#login');
+      else if (session?.user.id && session.user.id !== signedInUser) location.reload();
     });
     await render({ reuseDashboard: true });
   }

@@ -32,17 +32,26 @@ remaining reservation. Disposable test records were removed without changing use
 - Engine metadata and compiled SQL are reused within an isolate, while `NullPool` closes
   every session's connection. Request-local lock polling is limited to four wakeups per
   second, and response headers use pure ASGI middleware to reduce runtime overhead.
-- Cabinet navigation cancels stale reads and clears the previous section immediately.
-  Initial dashboard data is reused instead of loading twice; token balances arrive with
-  the transaction history. This reduces overlapping work on the free Workers CPU budget.
+- Cabinet navigation detaches obsolete view subscriptions; duplicate reads share one
+  request, so switching sections cannot cancel a request another view/prefetch needs.
+  Initial dashboard data is reused; token balances arrive with transaction history.
 - Material pages batch attachments in one query and omit full lesson content; job history
   joins saved material IDs instead of querying each row. A 12-material page takes five SQL
   statements including profile lookup; a job page takes three. Token history includes its
   balance in the same response.
 - Pages serves public Auth configuration from the generated `sana-config.json` asset and
   caches the public plan catalogue for 60 seconds. Private routes always reach the API.
-  Cabinet reads have a user-scoped, page-memory cache of 15 seconds (plans: five minutes),
-  cleared on writes/sign-out/account changes. Active generations bypass these cached reads.
+  Cabinet snapshots use a user-scoped memory/sessionStorage cache (at most 40 entries,
+  30-minute lifetime, 500,000-character persistence budget). Reads are fresh for 15 seconds
+  (plans: five minutes; jobs: four seconds); older snapshots render immediately while
+  revalidating. Reloads restore only the authenticated user's snapshots. No credentials are
+  added to this cache. Writes invalidate snapshots and in-flight responses; price quotes do
+  not. Sign-out/account changes clear them, and 403/404 responses evict invalid resources.
+  One background prefetch at a time warms the main sections and up to three recent lessons;
+  hover/keyboard intent warms individual targets. Active jobs poll fresh data and invalidate
+  dependent lists/balances when their status changes. Forms keep unsaved input during refresh.
+  Cold routes use neutral skeletons; cached routes and job polls never replace data with a
+  loading message. Background network failures leave data visible with a saved-data notice.
 - Cloudflare Queues execute text generation. A one-minute Cron drains the database outbox
   and refunds expired jobs. Duplicate delivery never creates a second charge/material.
 - Workers AI: `@cf/qwen/qwen3-30b-a3b-fp8`, not the local `sana-qwen3:4b` model.
@@ -121,8 +130,11 @@ the concurrent and disconnect checks passed on the public deployment (200/200/40
 All 54 backend tests passed, including cancellation, retained transaction cleanup and
 rejecting authentication before opening a DB session. Cloud generation was rechecked:
 one completed three-question quiz, one 6-token charge, no remaining reservation.
-The seven browser regression tests include delayed reads, cancellation and switching away
-from settings; these tests use API fixtures. The public authenticated browser was checked
+The 13 browser regression tests include delayed reads, switching away from settings,
+blocked-network cache navigation, stale revalidation, reload restoration, preserved form
+input, logout cleanup and job completion without a loading flash; they use API fixtures.
+The 29 Node tests include cache expiry, ownership, shared requests, invalidation races and
+permission/deletion errors. The public authenticated browser was checked
 separately with real account data and a quote that did not reserve or spend tokens.
 
 ### Performance and Mac independence check, 29 October 2026
@@ -153,3 +165,11 @@ References: [Python/FastAPI](https://developers.cloudflare.com/workers/languages
 [Python/Hyperdrive](https://developers.cloudflare.com/hyperdrive/examples/python-workers/),
 [Workers AI allowance](https://developers.cloudflare.com/workers-ai/platform/pricing/),
 [Supabase SMTP](https://supabase.com/docs/guides/auth/auth-smtp).
+
+### Cabinet cache verification, 29 October 2026
+
+With the published cache and a real signed-in account, six prepared sections switched in
+95–138 ms, including automated click/wait overhead; reloading an already opened lesson
+took 513 ms. Clicking a prefetched saved lesson took 70 ms. These are single-client observations, not a latency guarantee. Background
+API reads completed successfully in the Worker tail. The browser fixtures now distinguish
+Supabase Auth IDs from internal profile IDs, matching production.
