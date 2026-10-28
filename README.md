@@ -26,8 +26,8 @@ flowchart LR
 ## Бесплатная публикация в Cloudflare
 
 Подготовлен облачный вариант без зависимости от включённого Mac: Cloudflare Pages, Python Workers,
-Supabase PostgreSQL, Hyperdrive и Queues. Адрес `https://learn-sana.pages.dev` зарезервирован;
-публикация ожидает подключения к базе Supabase. Инструкция и актуальный статус —
+Supabase PostgreSQL, Hyperdrive и Queues. Сайт опубликован на
+[learn-sana.pages.dev](https://learn-sana.pages.dev). Инструкция и актуальный статус —
 [cloudflare/README.md](cloudflare/README.md).
 
 В облаке текст создаёт Qwen3-30B через Workers AI. Установлен общий лимит 20 новых генераций
@@ -67,9 +67,9 @@ uv run --no-sync celery -A app.worker:celery_app worker --pool=solo --concurrenc
 
 На 28 октября 2026 локальное окружение подключено к существующему проекту `xbmphrhmgahqydrdbgbi` в организации `sana-dev` (в Dashboard он называется `batyrkekw's Project`). Проект активен, регион — Singapore, тариф — Free. Его можно использовать с Python: Supabase Auth не зависит от языка предыдущего бэкенда.
 
-В Dashboard сохранены Site URL `http://127.0.0.1:4173`, четыре точных redirect URL для `auth.html` и `auth.html?recovery=1` на портах 4173 и 8000, минимальная длина пароля 10. Email и подтверждение почты включены; anonymous и Google выключены. Текущий ключ подписи — ECC P-256 / ES256; для API используется `jwks`. URL и существующий publishable key сохранены только в локальном `.env`. Данные приложения остаются в локальном PostgreSQL.
+На 29 октября 2026 Site URL — `https://learn-sana.pages.dev`. Разрешены точные redirects `auth.html` и `auth.html?recovery=1` для публичного сайта и для `127.0.0.1` на портах 4173/8000. Минимальная длина пароля — 10, email и подтверждение почты включены; anonymous и Google выключены. Текущий ключ подписи — ECC P-256 / ES256. Локальный API проверяет JWT через `jwks`, облачный — через `auth_server`. Публичные URL/publishable key заданы в локальном `.env` и конфигурации Worker. Данные публичного приложения находятся в приватной схеме `sana` Supabase PostgreSQL; исходная локальная база сохранена.
 
-Custom SMTP включён: Gmail, `smtp.gmail.com:465`, имя отправителя `SANA`. Адрес отправителя, логин и пароль хранятся в Supabase Dashboard; пароль не нужен в `.env` приложения и не должен попадать в Git. После сохранения Supabase установил лимит 30 писем в час. Gmail используется для начальной проверки; перед публичным запуском нужен проверенный домен и сервис транзакционных писем. Подробнее: [Custom SMTP](https://supabase.com/docs/guides/auth/auth-smtp).
+Custom SMTP включён: Gmail, `smtp.gmail.com:465`, имя отправителя `SANA`. Адрес отправителя, логин и пароль хранятся в Supabase Dashboard; пароль не нужен в `.env` приложения и не должен попадать в Git. После сохранения Supabase установил лимит 30 писем в час. Gmail используется для первой версии; для улучшения доставляемости рекомендуется собственный домен отправителя с SPF/DKIM/DMARC и сервис транзакционных писем. Подробнее: [Custom SMTP](https://supabase.com/docs/guides/auth/auth-smtp).
 
 Проверены публичный Auth settings endpoint (HTTP 200, Email включён, подтверждение обязательно), `/api/v1/config` (`auth_configured=true`), готовность PostgreSQL/Redis и отказ защищённого API без токена/с неверным токеном (401). Пользователь подтвердил регистрацию, вход и создание урока до настройки Custom SMTP. 29 октября 2026 после замены SMTP-пароля тест восстановления через SANA успешно завершился: Auth Logs подтвердили `POST /recover`, HTTP 200 для существующего аккаунта. Прежняя ошибка Gmail `535 / 5.7.8` устранена. Пользователь подтвердил получение тестового письма в папке «Спам». Новая регистрация через Custom SMTP также проверена: письмо подтверждения получено, почта подтверждена, вход зафиксирован в Supabase, открытие кабинета подтверждено пользователем. В PostgreSQL создан профиль, стартовые 100 токенов начислены одной операцией, резерв — 0. Доставка через SMTP работает, попадание во «Входящие» не гарантируется.
 

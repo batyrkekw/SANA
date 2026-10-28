@@ -44,4 +44,9 @@ if connection.exists():
 (HERE / "wrangler.local.json").write_text(json.dumps(config, indent=2) + "\n")
 print("Shared Python API and public configuration prepared; secrets excluded.")
 shutil.copytree(ROOT / "dist", OUT / "site", dirs_exist_ok=True)
-shutil.copytree(HERE / "pages", OUT / "site", dirs_exist_ok=True)
+shutil.copytree(
+    HERE / "pages",
+    OUT / "site",
+    dirs_exist_ok=True,
+    ignore=shutil.ignore_patterns("wrangler.jsonc"),
+)

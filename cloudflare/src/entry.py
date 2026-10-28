@@ -21,10 +21,13 @@ os.environ.update(
 )
 
 from cloud_runtime import CloudRuntime, cloud_database  # noqa: E402
+from sqlalchemy.orm import configure_mappers  # noqa: E402
 
 from app.db import get_db  # noqa: E402
 from app.main import app, config  # noqa: E402
 
+# Initialize ORM metadata in the deployment snapshot, outside the free request CPU budget.
+configure_mappers()
 runtime = CloudRuntime(env, config)
 app.state.cloud = runtime
 app.dependency_overrides[get_db] = cloud_database

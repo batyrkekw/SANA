@@ -141,3 +141,53 @@ def test_legacy_auth_server_verification_is_required(signer, monkeypatch):
     status = 503
     with pytest.raises(AppError, match="auth_unavailable"):
         verifier.verify(token)
+
+
+@pytest.mark.parametrize(
+    ("status", "change", "same_user", "error"),
+    [
+        (200, {}, True, None),
+        (200, {"role": "anon"}, True, "invalid_token"),
+        (200, {"is_anonymous": True}, True, "invalid_token"),
+        (200, {"exp": 1}, True, "invalid_token"),
+        (200, {"iss": "https://untrusted.example/auth/v1"}, True, "invalid_token"),
+        (200, {}, False, "invalid_token"),
+        (401, {}, True, "invalid_token"),
+        (503, {}, True, "auth_unavailable"),
+    ],
+)
+def test_cloud_auth_uses_async_transport_and_preserves_validation(
+    signer, monkeypatch, status, change, same_user, error
+):
+    import asyncio
+
+    import httpx
+    from fastapi.security import HTTPAuthorizationCredentials
+
+    from app.security import get_identity
+
+    key, original, claims = signer
+    verifier = TokenVerifier(
+        original.settings.model_copy(update={"auth_mode": "auth_server", "runtime": "cloudflare"})
+    )
+    token = jwt.encode({**claims, **change}, key, algorithm="RS256")
+    credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+    client_class = httpx.AsyncClient
+
+    async def response(request):
+        assert str(request.url) == original.issuer + "/user"
+        assert request.headers["Authorization"] == "Bearer " + token
+        return httpx.Response(
+            status, json={"id": claims["sub"] if same_user else str(uuid.uuid4())}
+        )
+
+    def client(**kwargs):
+        assert kwargs["follow_redirects"] is False
+        return client_class(transport=httpx.MockTransport(response), **kwargs)
+
+    monkeypatch.setattr(httpx, "AsyncClient", client)
+    if error:
+        with pytest.raises(AppError, match=error):
+            asyncio.run(get_identity(credentials, verifier))
+    else:
+        assert str(asyncio.run(get_identity(credentials, verifier)).id) == claims["sub"]

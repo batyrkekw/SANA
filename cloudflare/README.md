@@ -4,8 +4,13 @@ SANA keeps its Python/FastAPI backend and PostgreSQL models. Cloudflare Pages se
 frontend at `https://learn-sana.pages.dev`; its `/api/*` and `/health/*` routes use a service
 binding to the Python Worker `learn-sana`. Supabase Auth remains the identity provider.
 
-**Deployment status:** the Pages project and queue exist; production deployment awaits a
-working Supabase database password. Do not describe the reserved URL as a live application.
+**Deployment status (29 October 2026):** live at https://learn-sana.pages.dev. The backend,
+queue, Hyperdrive and private Supabase schema are deployed. Three profiles, two materials and
+the token ledger were copied from the local snapshot; the local database remains intact.
+Public health/configuration and unauthenticated rejection checks passed. Supabase Site URL
+and exact redirects use the public address. Public browser sign-in verification is pending. The real cloud Cron → Queue → Qwen →
+Supabase generation passed: three quiz questions, one material, one 6-token charge, no
+remaining reservation. Disposable test records were removed without changing user balances.
 
 ## Cloud runtime
 
@@ -26,7 +31,7 @@ working Supabase database password. Do not describe the reserved URL as a live a
 ## First deployment
 
 Requirements: Node 22+, uv **0.13.4+**, an existing Wrangler login with Workers, Pages,
-Queues, Hyperdrive/connectivity and certificate permissions. CLI version used: 4.154.0.
+Queues, Hyperdrive/connectivity and certificate permissions. CLI versions verified: 4.154.0 and 4.155.0.
 The account configured here is the owner's existing main Cloudflare account
 `1f10d8debbf323a3c6778e33f1cb1f78`; the account open in the browser can differ.
 
@@ -65,7 +70,8 @@ The account configured here is the owner's existing main Cloudflare account
    python3 cloudflare/build.py
    cd cloudflare
    uv run pywrangler deploy --config wrangler.local.json
-   npx wrangler@4.154.0 pages deploy --config pages.json --project-name learn-sana --branch main
+   cd pages
+   CLOUDFLARE_ACCOUNT_ID=1f10d8debbf323a3c6778e33f1cb1f78 npx wrangler@4.154.0 pages deploy --project-name learn-sana --branch main
    ```
 
    If the system uv is older, the isolated equivalent is
