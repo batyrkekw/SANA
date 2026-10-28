@@ -4,6 +4,7 @@ import asyncio
 import logging
 import uuid
 from datetime import UTC, datetime, timedelta
+from functools import lru_cache
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -37,7 +38,7 @@ class RequestLocalLock:
         try:
             async with asyncio.timeout(15):
                 while self._locked:
-                    await asyncio.sleep(0.025)
+                    await asyncio.sleep(0.25)
                 self._locked = True
         except TimeoutError as error:
             raise AppError("database_unavailable", 503) from error
@@ -60,14 +61,21 @@ async def complete_request(operation, keep_alive):
 
 def factory_for(env):
     hd = env.HYPERDRIVE
+    return cached_factory(hd.user, hd.password, hd.host, int(hd.port), hd.database)
+
+
+@lru_cache(maxsize=2)
+def cached_factory(user, password, host, port, database):
+    # Cache dialect metadata/compiled SQL, never connections. NullPool closes each
+    # socket with its request's session; a rotated binding gets a new factory.
     engine = create_engine(
         URL.create(
             "postgresql+pg8000",
-            username=hd.user,
-            password=hd.password,
-            host=hd.host,
-            port=int(hd.port),
-            database=hd.database,
+            username=user,
+            password=password,
+            host=host,
+            port=port,
+            database=database,
         ),
         poolclass=NullPool,
         connect_args={"ssl_context": False, "timeout": 8},
@@ -80,16 +88,13 @@ async def cloud_database(request: Request):
     # Python Workers require serialized synchronous socket/ORM operations.
     async with sql_lock:
         factory = factory_for(request.scope["env"])
-        try:
-            with factory() as session:
-                try:
-                    yield session
-                    session.commit()
-                except Exception:
-                    session.rollback()
-                    raise
-        finally:
-            factory.kw["bind"].dispose()
+        with factory() as session:
+            try:
+                yield session
+                session.commit()
+            except BaseException:
+                session.rollback()
+                raise
 
 
 def locked_job(db, job_id):
@@ -106,7 +111,6 @@ class CloudRuntime:
         self.config = config or get_settings()
 
     async def ready(self):
-        factory = None
         try:
             async with sql_lock:
                 factory = factory_for(self.env)
@@ -115,9 +119,6 @@ class CloudRuntime:
             return JSONResponse({"database": True, "queue_configured": bool(self.env.JOBS)})
         except Exception:
             return JSONResponse({"database": False}, 503)
-        finally:
-            if factory:
-                factory.kw["bind"].dispose()
 
     def models(self):
         return {
@@ -187,74 +188,69 @@ class CloudRuntime:
                         settle(db, job, False)
                         job.status, job.error_code, job.finished_at = "failed", code, utcnow()
             logger.warning("generation_failed job=%s code=%s", job_id, code)
-        finally:
-            factory.kw["bind"].dispose()
 
     async def dispatch_and_recover(self):
         now = utcnow()
         factory = factory_for(self.env)
-        try:
-            async with sql_lock:
-                with factory() as db:
-                    ids = db.scalars(
-                        select(Job.id)
-                        .where(
-                            or_(
-                                (Job.status == "queued")
-                                & (
-                                    Job.created_at
-                                    < now - timedelta(seconds=self.config.queue_timeout_seconds)
-                                ),
-                                (Job.status == "processing")
-                                & (
-                                    Job.started_at
-                                    < now - timedelta(seconds=self.config.job_timeout_seconds + 45)
-                                ),
-                            )
-                        )
-                        .limit(30)
-                    ).all()
-                for job_id in ids:
-                    with factory.begin() as db:
-                        job = locked_job(db, job_id)
-                        expired = job and (
-                            (
-                                job.status == "queued"
-                                and job.created_at
+        async with sql_lock:
+            with factory() as db:
+                ids = db.scalars(
+                    select(Job.id)
+                    .where(
+                        or_(
+                            (Job.status == "queued")
+                            & (
+                                Job.created_at
                                 < now - timedelta(seconds=self.config.queue_timeout_seconds)
-                            )
-                            or (
-                                job.status == "processing"
-                                and job.started_at
+                            ),
+                            (Job.status == "processing")
+                            & (
+                                Job.started_at
                                 < now - timedelta(seconds=self.config.job_timeout_seconds + 45)
-                            )
-                        )
-                        if expired:
-                            settle(db, job, False)
-                            job.status, job.error_code, job.finished_at = (
-                                "failed",
-                                "generation_timeout",
-                                now,
-                            )
-                with factory() as db:
-                    pending = db.scalars(
-                        select(Job.id)
-                        .where(
-                            Job.status == "queued",
-                            or_(
-                                Job.dispatched_at.is_(None),
-                                Job.dispatched_at < now - timedelta(seconds=120),
                             ),
                         )
-                        .order_by(Job.created_at)
-                        .limit(10)
-                    ).all()
-            for job_id in pending:
-                await self.env.JOBS.send({"job_id": str(job_id)})
-                async with sql_lock:
-                    with factory.begin() as db:
-                        job = locked_job(db, job_id)
-                        if job and job.status == "queued":
-                            job.dispatched_at = now
-        finally:
-            factory.kw["bind"].dispose()
+                    )
+                    .limit(30)
+                ).all()
+            for job_id in ids:
+                with factory.begin() as db:
+                    job = locked_job(db, job_id)
+                    expired = job and (
+                        (
+                            job.status == "queued"
+                            and job.created_at
+                            < now - timedelta(seconds=self.config.queue_timeout_seconds)
+                        )
+                        or (
+                            job.status == "processing"
+                            and job.started_at
+                            < now - timedelta(seconds=self.config.job_timeout_seconds + 45)
+                        )
+                    )
+                    if expired:
+                        settle(db, job, False)
+                        job.status, job.error_code, job.finished_at = (
+                            "failed",
+                            "generation_timeout",
+                            now,
+                        )
+            with factory() as db:
+                pending = db.scalars(
+                    select(Job.id)
+                    .where(
+                        Job.status == "queued",
+                        or_(
+                            Job.dispatched_at.is_(None),
+                            Job.dispatched_at < now - timedelta(seconds=120),
+                        ),
+                    )
+                    .order_by(Job.created_at)
+                    .limit(10)
+                ).all()
+        for job_id in pending:
+            await self.env.JOBS.send({"job_id": str(job_id)})
+            async with sql_lock:
+                with factory.begin() as db:
+                    job = locked_job(db, job_id)
+                    if job and job.status == "queued":
+                        job.dispatched_at = now

@@ -8,7 +8,10 @@ binding to the Python Worker `learn-sana`. Supabase Auth remains the identity pr
 queue, Hyperdrive and private Supabase schema are deployed. Three profiles, two materials and
 the token ledger were copied from the local snapshot; the local database remains intact.
 Public health/configuration and unauthenticated rejection checks passed. Supabase Site URL
-and exact redirects use the public address. Public browser sign-in verification is pending. The real cloud Cron → Queue → Qwen →
+and exact redirects use the public address. The signed-in public browser loaded the overview,
+materials, generation history, token ledger, plans, settings and generation form. Rapid
+section changes, a reload during an active read, opening a saved lesson and a generation
+quote also passed. The real cloud Cron → Queue → Qwen →
 Supabase generation passed: three quiz questions, one material, one 6-token charge, no
 remaining reservation. Disposable test records were removed without changing user balances.
 
@@ -23,6 +26,12 @@ remaining reservation. Disposable test records were removed without changing use
   and left the isolate locked. Authentication completes before acquiring the SQL guard.
 - HTTP tasks are retained with `waitUntil` and shielded from client cancellation so
   navigating away cannot interrupt transaction cleanup and strand the SQL guard.
+- Engine metadata and compiled SQL are reused within an isolate, while `NullPool` closes
+  every session's connection. Request-local lock polling is limited to four wakeups per
+  second, and response headers use pure ASGI middleware to reduce runtime overhead.
+- Cabinet navigation cancels stale reads and clears the previous section immediately.
+  Initial dashboard data is reused instead of loading twice; token balances use the
+  smaller balance endpoint. This reduces overlapping work on the free Workers CPU budget.
 - Cloudflare Queues execute text generation. A one-minute Cron drains the database outbox
   and refunds expired jobs. Duplicate delivery never creates a second charge/material.
 - Workers AI: `@cf/qwen/qwen3-30b-a3b-fp8`, not the local `sana-qwen3:4b` model.
@@ -101,6 +110,9 @@ the concurrent and disconnect checks passed on the public deployment (200/200/40
 All 53 backend tests passed, including cancellation, retained transaction cleanup and
 rejecting authentication before opening a DB session. Cloud generation was rechecked:
 one completed three-question quiz, one 6-token charge, no remaining reservation.
+The six browser regression tests include delayed reads, cancellation and switching away
+from settings; these tests use API fixtures. The public authenticated browser was checked
+separately with real account data and a quote that did not reserve or spend tokens.
 
 ## Email delivery
 

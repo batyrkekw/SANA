@@ -34,10 +34,12 @@ export function connect() {
   return connection;
 }
 export async function api(path, options = {}, retry = true) {
+  options.signal?.throwIfAborted();
   const { client } = await connect();
   const {
     data: { session },
   } = client ? await client.auth.getSession() : { data: { session: null } };
+  options.signal?.throwIfAborted();
   if (!session) throw new APIError('authentication_required', 401);
   const headers = new Headers(options.headers);
   headers.set('Authorization', `Bearer ${session.access_token}`);
@@ -48,9 +50,12 @@ export async function api(path, options = {}, retry = true) {
       ...options,
       headers,
       cache: 'no-store',
-      signal: options.signal || AbortSignal.timeout(20000),
+      signal: options.signal
+        ? AbortSignal.any([options.signal, AbortSignal.timeout(20000)])
+        : AbortSignal.timeout(20000),
     });
   } catch {
+    options.signal?.throwIfAborted();
     throw new APIError('network');
   }
   if (response.status === 401 && retry) {

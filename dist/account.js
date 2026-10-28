@@ -15,6 +15,7 @@ const status = document.querySelector('#workspace-status');
 let dashboard,
   client,
   routeVersion = 0,
+  routeController,
   pollTimer,
   dialogAction;
 let assets = [];
@@ -40,10 +41,10 @@ const pagination = (result, action) =>
 function cards(items) {
   return `<div class="material-grid">${items.map((item) => `<article class="material-card"><div class="material-cover" data-kind="${e(item.kind)}">${item.assets?.length ? `<img data-asset="${e(item.assets[0].url)}" alt="${e(item.title)}">` : `<span aria-hidden="true">${{ lesson: '✦', comic: '▧', quiz: '?', flashcards: '▤', image: '◇' }[item.kind] || '✦'}</span>`}</div><div class="material-copy"><p class="p-eyebrow">${e(t(item.kind))} · ${e(item.language.toUpperCase())}</p><h3><a href="#material/${item.id}">${e(item.title)}</a></h3><p>${e(item.subject)} · ${e(item.topic)}</p><small>${e(date(item.created_at))}</small></div></article>`).join('')}</div>`;
 }
-async function loadAssets(version) {
+async function loadAssets(version, signal) {
   for (const image of content.querySelectorAll('[data-asset]')) {
     try {
-      const blob = await api(image.dataset.asset.replace('/api/v1', ''), { blob: true });
+      const blob = await api(image.dataset.asset.replace('/api/v1', ''), { blob: true, signal });
       if (version !== routeVersion) return;
       const url = URL.createObjectURL(blob);
       assets.push(url);
@@ -61,15 +62,22 @@ function topbar() {
     .slice(0, 2)
     .toUpperCase();
 }
-async function refreshDashboard() {
-  dashboard = await api('/dashboard');
+async function refreshDashboard(read = api) {
+  dashboard = await read('/dashboard');
   topbar();
 }
 function route() {
   return location.hash.slice(1).split('?')[0] || 'overview';
 }
-async function render() {
+async function render({ reuseDashboard = false } = {}) {
   const version = ++routeVersion;
+  routeController?.abort();
+  const controller = (routeController = new AbortController());
+  const read = async (path) => {
+    const data = await api(path, { signal: controller.signal });
+    controller.signal.throwIfAborted();
+    return data;
+  };
   clearTimeout(pollTimer);
   assets.forEach(URL.revokeObjectURL);
   assets = [];
@@ -81,10 +89,11 @@ async function render() {
     else link.removeAttribute('aria-current');
   });
   content.setAttribute('aria-busy', 'true');
+  content.innerHTML = `<p>${e(t('loading'))}</p>`;
   try {
     let html;
     if (view === 'overview') {
-      await refreshDashboard();
+      if (!reuseDashboard) await refreshDashboard(read);
       html =
         title(
           t('hello', { name: dashboard.profile.display_name || t('teacher') }),
@@ -95,7 +104,7 @@ async function render() {
         <div class="p-section-title"><h2>${e(t('recentMaterials'))}</h2><a href="#materials">${e(t('viewAll'))} ↗</a></div>` +
         (dashboard.recent_materials.length ? cards(dashboard.recent_materials) : empty());
     } else if (view === 'materials') {
-      const data = await api(
+      const data = await read(
         `/materials?${new URLSearchParams({ ...filters, page: materialPage })}`
       );
       html =
@@ -106,17 +115,18 @@ async function render() {
           : `<div class="p-empty"><p>${e(t('noResults'))}</p>${button(t('generate'), '#create')}</div>`) +
         pagination(data, 'materials');
     } else if (view === 'create') {
-      html = await generator();
+      html = await generator(read);
     } else if (view === 'jobs') {
-      const data = await api(`/generations?page=${jobPage}`);
+      const data = await read(`/generations?page=${jobPage}`);
       html = title(t('generationHistory')) + jobsHTML(data) + pagination(data, 'jobs');
       if (data.items.some((job) => ['queued', 'processing'].includes(job.status)))
         pollTimer = setTimeout(() => {
           if (route() === 'jobs') void render();
         }, 4000);
     } else if (view === 'tokens') {
-      const data = await api(`/me/tokens/transactions?page=${tokenPage}`);
-      await refreshDashboard();
+      const data = await read(`/me/tokens/transactions?page=${tokenPage}`);
+      dashboard.tokens = await read('/me/tokens');
+      topbar();
       html =
         title(t('tokenHistory'), t('tokensExplanation')) +
         `<div class="p-balance">${e(t('availableTokens'))}: <strong>${number(dashboard.tokens.available)}</strong> · ${e(t('reservedTokens'))}: ${number(dashboard.tokens.reserved)}</div>` +
@@ -125,7 +135,7 @@ async function render() {
           : `<p>${e(t('noTransactions'))}</p>`) +
         pagination(data, 'tokens');
     } else if (view === 'plan') {
-      const plans = await api('/plans');
+      const plans = await read('/plans');
       html =
         title(t('myPlan'), t('developmentPlans')) +
         `<div class="p-plan-grid">${plans.map((plan) => `<article class="p-plan ${plan.code === dashboard.plan.code ? 'selected' : ''}"><p class="p-eyebrow">${plan.code === dashboard.plan.code ? e(t('current')) : 'SANA'}</p><h2>${e(plan.name[lang()])}</h2><strong>${number(plan.limits.max_tokens ?? plan.initial_tokens)}</strong><p>${e(t('initialAllowance'))} · ${e(t('tokensUnit'))}</p><hr><h3>${e(t('allowedMaterials'))}</h3><ul>${plan.limits.kinds.map((kind) => `<li>${e(t(kind))}</li>`).join('')}</ul><p>${e(t('maxLength'))}: ${number(plan.limits.max_length)}</p></article>`).join('')}</div>`;
@@ -134,7 +144,7 @@ async function render() {
         title(t('accountSettings'), t('profileIntro')) +
         `<form id="settings-form" class="p-form settings-form">${input('display_name', 'displayName', dashboard.profile.display_name, 'required maxlength="80" autocomplete="name"')}${select('language', 'languageSetting', option('ru', 'Русский', lang() === 'ru') + option('kk', 'Қазақша', lang() === 'kk'))}<button class="p-button primary" type="submit">${e(t('save'))}</button><a href="/auth.html#reset">${e(t('resetPassword'))}</a></form>`;
     } else if (view.startsWith('material/')) {
-      const material = await api(`/materials/${encodeURIComponent(view.slice(9))}`);
+      const material = await read(`/materials/${encodeURIComponent(view.slice(9))}`);
       html = materialHTML(material);
     } else {
       location.hash = 'overview';
@@ -142,10 +152,11 @@ async function render() {
     }
     if (version !== routeVersion) return;
     content.innerHTML = html;
-    void loadAssets(version);
+    void loadAssets(version, controller.signal);
     if (view === 'create') wireGeneration();
   } catch (error) {
-    if (version === routeVersion) notice(status, errorText(error), true);
+    if (version === routeVersion && !controller.signal.aborted)
+      notice(status, errorText(error), true);
   } finally {
     if (version === routeVersion) content.removeAttribute('aria-busy');
   }
@@ -158,8 +169,8 @@ function jobsHTML(data) {
     ? `<div class="job-list">${data.items.map((job) => `<article class="job-row"><div><span class="p-badge ${job.status}" role="status">${e(t(job.status))}</span><h3>${e(job.request.topic)}</h3><p>${e(t(job.request.kind))} · ${e(date(job.created_at))} · ${number(job.cost)} ${e(t('tokensUnit'))}</p>${job.error_code ? `<p class="is-error">${e(errorText({ code: job.error_code }))}</p>` : ''}</div><div>${job.material_id ? button(t('openMaterial'), `#material/${job.material_id}`, true) : ''}${job.can_cancel ? `<button class="p-button" data-cancel-job="${job.id}">${e(t('cancelJob'))}</button>` : ''}</div></article>`).join('')}</div>`
     : `<div class="p-empty"><p>${e(t('noJobs'))}</p>${button(t('generate'), '#create')}</div>`;
 }
-async function generator() {
-  const state = await api('/ai/status');
+async function generator(read = api) {
+  const state = await read('/ai/status');
   const chosen = new URLSearchParams(location.hash.split('?')[1] || '').get('kind') || 'lesson';
   return (
     title(t('generate'), t('generationIntro')) +
@@ -425,7 +436,7 @@ try {
     client.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') location.replace('/auth.html#login');
     });
-    await render();
+    await render({ reuseDashboard: true });
   }
 } catch (error) {
   notice(status, errorText(error), true);

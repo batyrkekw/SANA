@@ -124,6 +124,7 @@ async function setup(page, { signedIn = false, configured = true } = {}) {
       data = material;
     } else if (path === '/me/tokens/transactions')
       data = { items: [], page: 1, page_size: 20, total: 0 };
+    else if (path === '/me/tokens') data = { available: 94, reserved: 6 };
     else data = {};
     await route.fulfill({ json: data });
   });
@@ -162,6 +163,7 @@ test('account reads real API values, quotes before submission, opens and deletes
   await page.goto('/account.html');
   await expect(page.getByRole('heading', { name: 'Здравствуйте, Айдана.' })).toBeVisible();
   await expect(page.locator('#top-balance')).toContainText('94');
+  expect(requests.filter((r) => r.path === '/dashboard')).toHaveLength(1);
   await page.getByRole('link', { name: 'Создать викторину', exact: true }).click();
   await page.getByLabel('Предмет', { exact: true }).fill('Физика');
   await page.getByLabel('Тема', { exact: true }).fill('Ток');
@@ -209,4 +211,31 @@ test('signed-in user can request a recovery email from settings', async ({ page 
   await page.locator('#auth-submit').click();
   await expect(page.locator('#auth-notice')).not.toBeEmpty();
   expect(requests.some((r) => r.url?.includes('/recover'))).toBeTruthy();
+});
+
+test('changing sections cancels stale reads and removes the previous form', async ({ page }) => {
+  await setup(page, { signedIn: true });
+  await page.goto('/account.html#settings');
+  await expect(page.locator('#settings-form')).toBeVisible();
+  let release, started;
+  const pending = new Promise((resolve) => { release = resolve; });
+  const requested = new Promise((resolve) => { started = resolve; });
+  const failures = [];
+  page.on('requestfailed', (request) => failures.push(request.url()));
+  await page.route('**/api/v1/materials?**', async (route) => {
+    started();
+    await pending;
+    await route.fulfill({ json: { items: [], subjects: [], page: 1, page_size: 12, total: 0 } }).catch(() => {});
+  });
+  await page.locator('.account-nav a[href="#materials"]').click();
+  await requested;
+  await expect(page.locator('#settings-form')).toHaveCount(0);
+  await expect(page.locator('#workspace-content')).toHaveAttribute('aria-busy', 'true');
+  await page.locator('.account-nav a[href="#plan"]').click();
+  await expect(page.getByRole('heading', { name: 'Мой тариф', exact: true })).toBeVisible();
+  await expect.poll(() => failures.some((url) => url.includes('/materials?'))).toBe(true);
+  release();
+  await expect(page.locator('#workspace-content')).not.toHaveAttribute('aria-busy');
+  await expect(page.locator('#settings-form')).toHaveCount(0);
+  await expect(page.locator('#workspace-status')).toBeEmpty();
 });
