@@ -1,5 +1,12 @@
 import { createClient } from './vendor/supabase.js';
 let connection;
+// Private data lives only in this page's memory, never in a shared HTTP cache.
+const reads = new Map();
+let readOwner, readEpoch = 0;
+export function clearReads() {
+  reads.clear();
+  readEpoch++;
+}
 export class APIError extends Error {
   constructor(code, status = 0) {
     super(code);
@@ -29,6 +36,9 @@ export function connect() {
         detectSessionInUrl: true,
       },
     });
+    client.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') clearReads();
+    });
     return { client, config };
   })();
   return connection;
@@ -41,13 +51,23 @@ export async function api(path, options = {}, retry = true) {
   } = client ? await client.auth.getSession() : { data: { session: null } };
   options.signal?.throwIfAborted();
   if (!session) throw new APIError('authentication_required', 401);
+  if (readOwner !== session.user.id) {
+    clearReads();
+    readOwner = session.user.id;
+  }
+  const { cacheFor = 0, ...fetchOptions } = options;
+  const isRead = !options.method || options.method === 'GET';
+  if (!isRead) clearReads();
+  const epoch = readEpoch;
+  const cached = reads.get(path);
+  if (isRead && cacheFor && cached?.expires > Date.now()) return structuredClone(cached.data);
   const headers = new Headers(options.headers);
   headers.set('Authorization', `Bearer ${session.access_token}`);
   if (options.body) headers.set('Content-Type', 'application/json');
   let response;
   try {
     response = await fetch(`/api/v1${path}`, {
-      ...options,
+      ...fetchOptions,
       headers,
       cache: 'no-store',
       signal: options.signal
@@ -68,5 +88,13 @@ export async function api(path, options = {}, retry = true) {
     throw new APIError(body.error?.code || 'internal_error', response.status);
   }
   if (options.blob) return response.blob();
-  return response.status === 204 ? null : response.json();
+  const data = response.status === 204 ? null : await response.json();
+  options.signal?.throwIfAborted();
+  if (!isRead) clearReads();
+  // Active jobs need fresh balances/lists on each poll and section change.
+  if (isRead && cacheFor && epoch === readEpoch && !data?.tokens?.reserved) {
+    if (reads.size >= 40) reads.delete(reads.keys().next().value);
+    reads.set(path, { data: structuredClone(data), expires: Date.now() + cacheFor });
+  }
+  return data;
 }

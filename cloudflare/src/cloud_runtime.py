@@ -5,6 +5,7 @@ import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 from functools import lru_cache
+from time import perf_counter
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -86,15 +87,22 @@ def cached_factory(user, password, host, port, database):
 
 async def cloud_database(request: Request):
     # Python Workers require serialized synchronous socket/ORM operations.
+    started = perf_counter()
+    timing = request.scope.setdefault("sana_timing", {})
     async with sql_lock:
+        acquired = perf_counter()
+        timing["db_wait"] = (acquired - started) * 1000
         factory = factory_for(request.scope["env"])
-        with factory() as session:
-            try:
-                yield session
-                session.commit()
-            except BaseException:
-                session.rollback()
-                raise
+        try:
+            with factory() as session:
+                try:
+                    yield session
+                    session.commit()
+                except BaseException:
+                    session.rollback()
+                    raise
+        finally:
+            timing["db"] = (perf_counter() - acquired) * 1000
 
 
 def locked_job(db, job_id):

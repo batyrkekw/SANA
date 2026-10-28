@@ -1,0 +1,105 @@
+/* The landing page reads in pairs: introduction, community, discovery, practice. */
+@layer components {
+  main .section.section-light,
+  main .faq.section-light,
+  main .closing.section-light {
+    --navy: #142639;
+    --cream: #f7f4ed;
+    --gold: #896a32;
+    --muted: #58636c;
+    color: var(--navy);
+    background: var(--cream);
+    border-block: 0;
+    color-scheme: light;
+  }
+
+  main .about.section-dark {
+    background: #102034;
+    border: 0;
+    padding-top: 70px;
+    padding-bottom: 100px;
+  }
+
+  main .about.section-dark .step-index {
+    background: #102034;
+  }
+
+  main .achievements.section-light {
+    padding-bottom: 62px;
+    background: radial-gradient(ellipse at 85% 25%, #e4d3ac3b, transparent 65%), #f7f4ed;
+  }
+
+  main .achievements.section-light .achievement-details {
+    border-top-color: #cbbd9c;
+  }
+
+  main .reviews.section-light {
+    padding-top: 62px;
+    padding-bottom: 100px;
+  }
+
+  main .reviews.section-light .review-community-card {
+    background: #fffdf8;
+    border-color: #d5cbb8;
+    box-shadow: 0 16px 45px #24344706;
+  }
+
+  main .video-section.section-dark,
+  main .features.section-dark {
+    background: #13273b;
+    border: 0;
+  }
+
+  main .video-section.section-dark { padding-bottom: 62px; }
+  main .features.section-dark { padding-top: 62px; padding-bottom: 100px; }
+  main .features.section-dark #feature-showcase {
+    background: #fffdf8;
+    border-color: #d5cbb8;
+    box-shadow: 0 22px 60px #06111f40;
+    color-scheme: light;
+  }
+
+  main .lessons.section-light { padding-bottom: 62px; }
+  main .games.section-light { padding-top: 62px; padding-bottom: 100px; }
+  main .lessons.section-light .lesson-card {
+    background: #fffdf8;
+    border-color: #ded6c8;
+    box-shadow: 0 8px 25px #14263906;
+  }
+  main .lessons.section-light .eyebrow { color: var(--gold); }
+
+  main .pricing.section-dark {
+    background: radial-gradient(ellipse at 50% 0, #20364a, transparent 70%), #101f32;
+    border: 0;
+    padding-block: 100px;
+  }
+
+  main .faq.section-light { padding-bottom: 62px; }
+  main .closing.section-light { padding-top: 62px; padding-bottom: 82px; }
+
+  /* Quiet inset rules separate related sections without another colour change. */
+  main :is(.reviews, .features, .games, .closing) { position: relative; }
+  main :is(.reviews, .features, .games, .closing)::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: max(7%, calc((100vw - 1280px) / 2));
+    right: max(7%, calc((100vw - 1280px) / 2));
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #bfa77666 20%, #bfa77666 80%, transparent);
+    pointer-events: none;
+  }
+
+  @media (max-width: 850px) {
+    main .about.section-dark,
+    main .reviews.section-light,
+    main .features.section-dark,
+    main .games.section-light,
+    main .pricing.section-dark { padding-block: 64px; }
+    main .achievements.section-light,
+    main .video-section.section-dark,
+    main .lessons.section-light,
+    main .faq.section-light { padding-bottom: 48px; }
+    main .closing.section-light { padding-block: 48px 62px; }
+  }
+}

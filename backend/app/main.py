@@ -4,6 +4,7 @@ import logging
 import uuid
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from time import perf_counter
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, Header, Query
@@ -13,13 +14,23 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import delete, func, select, text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, defer
 from starlette.datastructures import MutableHeaders
 
 from app.config import ROOT, get_settings
 from app.db import get_db, get_engine
 from app.errors import AppError
-from app.models import Asset, Job, Material, Plan, Profile, TokenAccount, TokenTransaction, utcnow
+from app.models import (
+    Asset,
+    Job,
+    Material,
+    Plan,
+    Profile,
+    Subscription,
+    TokenAccount,
+    TokenTransaction,
+    utcnow,
+)
 from app.schemas import GenerationInput, MaterialInput, MaterialUpdate, ProfileUpdate
 from app.security import Identity, get_identity
 from app.services import cancel_job, create_job, ensure_profile, quote, user_plan
@@ -114,6 +125,8 @@ class ResponseHeaders:
         self.app = app
 
     async def __call__(self, scope, receive, send):
+        started = perf_counter()
+
         async def send_headers(message):
             if message["type"] == "http.response.start":
                 headers = MutableHeaders(scope=message)
@@ -122,6 +135,10 @@ class ResponseHeaders:
                 headers["X-Frame-Options"] = "DENY"
                 if scope.get("path", "").startswith("/api/"):
                     headers["Cache-Control"] = "no-store"
+                timing = {"app": (perf_counter() - started) * 1000, **scope.get("sana_timing", {})}
+                headers["Server-Timing"] = ", ".join(
+                    f"{name};dur={duration:.1f}" for name, duration in timing.items()
+                )
             await send(message)
 
         await self.app(scope, receive, send_headers)
@@ -193,10 +210,11 @@ def profile_data(profile):
     }
 
 
-def material_data(db, material, detail=False):
-    assets = db.scalars(
-        select(Asset).where(Asset.material_id == material.id).order_by(Asset.created_at)
-    ).all()
+def material_data(db, material, detail=False, assets=None):
+    if assets is None:
+        assets = db.scalars(
+            select(Asset).where(Asset.material_id == material.id).order_by(Asset.created_at)
+        ).all()
     result = {
         "id": material.id,
         "title": material.title,
@@ -221,8 +239,22 @@ def material_data(db, material, detail=False):
     return result
 
 
-def job_data(db, job):
-    material_id = db.scalar(select(Material.id).where(Material.job_id == job.id))
+def material_list(db, rows):
+    rows = list(rows)
+    if not rows:
+        return []
+    # One attachment query per page; rows already passed the owner filter.
+    grouped = {row.id: [] for row in rows}
+    for asset in db.scalars(
+        select(Asset).where(Asset.material_id.in_(grouped)).order_by(Asset.created_at)
+    ):
+        grouped[asset.material_id].append(asset)
+    return [material_data(db, row, assets=grouped[row.id]) for row in rows]
+
+
+def job_data(db, job, material_id=...):
+    if material_id is ...:
+        material_id = db.scalar(select(Material.id).where(Material.job_id == job.id))
     return {
         "id": job.id,
         "status": job.status,
@@ -325,6 +357,7 @@ def transactions(user: User, db: DB, page: int = Query(1, ge=1, le=100000)):
         "total": total,
         "page": page,
         "page_size": 20,
+        "tokens": balance(user, db),
         "items": [
             {
                 "id": entry.id,
@@ -360,7 +393,8 @@ def materials(
         statement = statement.where(Material.kind == kind)
     total = db.scalar(select(func.count()).select_from(statement.subquery()))
     rows = db.scalars(
-        statement.order_by(
+        statement.options(defer(Material.content))
+        .order_by(
             Material.created_at.desc() if order == "desc" else Material.created_at.asc(),
             Material.id,
         )
@@ -371,7 +405,7 @@ def materials(
         select(Material.subject).where(Material.owner_id == user.id).distinct()
     ).all()
     return {
-        "items": [material_data(db, row) for row in rows],
+        "items": material_list(db, rows),
         "total": total,
         "page": page,
         "page_size": 12,
@@ -446,22 +480,29 @@ def read_asset(asset_id: uuid.UUID, user: User, db: DB):
 
 @app.get("/api/v1/dashboard")
 def dashboard(user: User, db: DB):
+    plan, account = db.execute(
+        select(Plan, TokenAccount)
+        .join(Subscription, Subscription.plan_code == Plan.code)
+        .join(TokenAccount, TokenAccount.profile_id == Subscription.profile_id)
+        .where(Subscription.profile_id == user.id)
+    ).one()
     return {
         "profile": profile_data(user),
-        "plan": plan_data(user_plan(db, user.id)),
-        "tokens": balance(user, db),
+        "plan": plan_data(plan),
+        "tokens": {"available": account.available, "reserved": account.reserved},
         "material_count": db.scalar(
             select(func.count()).select_from(Material).where(Material.owner_id == user.id)
         ),
-        "recent_materials": [
-            material_data(db, material)
-            for material in db.scalars(
+        "recent_materials": material_list(
+            db,
+            db.scalars(
                 select(Material)
+                .options(defer(Material.content))
                 .where(Material.owner_id == user.id)
                 .order_by(Material.created_at.desc())
                 .limit(4)
-            )
-        ],
+            ),
+        ),
     }
 
 
@@ -490,9 +531,15 @@ def start_generation(
 def generations(user: User, db: DB, page: int = Query(1, ge=1, le=100000)):
     statement = select(Job).where(Job.owner_id == user.id)
     total = db.scalar(select(func.count()).select_from(statement.subquery()))
-    jobs = db.scalars(statement.order_by(Job.created_at.desc()).offset((page - 1) * 20).limit(20))
+    jobs = db.execute(
+        statement.add_columns(Material.id)
+        .outerjoin(Material, (Material.job_id == Job.id) & (Material.owner_id == user.id))
+        .order_by(Job.created_at.desc())
+        .offset((page - 1) * 20)
+        .limit(20)
+    )
     return {
-        "items": [job_data(db, job) for job in jobs],
+        "items": [job_data(db, job, material_id) for job, material_id in jobs],
         "total": total,
         "page": page,
         "page_size": 20,

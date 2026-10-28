@@ -6,6 +6,7 @@
 @import "./showcase.css";
 @import "./reviews.css";
 @import "./platform.css";
+@import "./rhythm.css";
 @source "../dist/*.html";
 @source "../dist/*.js";
 

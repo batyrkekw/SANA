@@ -33,7 +33,7 @@ const material = {
     ],
   },
 };
-async function setup(page, { signedIn = false, configured = true } = {}) {
+async function setup(page, { signedIn = false, configured = true, reserved = 6 } = {}) {
   const session = {
     access_token: 'browser-contract-token',
     refresh_token: 'browser-contract-refresh',
@@ -88,7 +88,7 @@ async function setup(page, { signedIn = false, configured = true } = {}) {
       data = {
         profile,
         plan,
-        tokens: { available: 94, reserved: 6 },
+        tokens: { available: 94, reserved },
         material_count: items.length,
         recent_materials: items,
       };
@@ -123,7 +123,7 @@ async function setup(page, { signedIn = false, configured = true } = {}) {
       if (req.method() === 'PATCH') material.title = req.postDataJSON().title;
       data = material;
     } else if (path === '/me/tokens/transactions')
-      data = { items: [], page: 1, page_size: 20, total: 0 };
+      data = { items: [], page: 1, page_size: 20, total: 0, tokens: { available: 94, reserved: 6 } };
     else if (path === '/me/tokens') data = { available: 94, reserved: 6 };
     else data = {};
     await route.fulfill({ json: data });
@@ -238,4 +238,26 @@ test('changing sections cancels stale reads and removes the previous form', asyn
   await expect(page.locator('#workspace-content')).not.toHaveAttribute('aria-busy');
   await expect(page.locator('#settings-form')).toHaveCount(0);
   await expect(page.locator('#workspace-status')).toBeEmpty();
+});
+
+test('recent reads are reused, profile changes invalidate them, token history is one request', async ({ page }) => {
+  const requests = await setup(page, { signedIn: true, reserved: 0 });
+  await page.goto('/account.html');
+  await expect(page.getByRole('heading', { name: 'Здравствуйте, Айдана.' })).toBeVisible();
+  await page.locator('.account-nav a[href="#plan"]').click();
+  await expect(page.getByRole('heading', { name: 'Мой тариф', exact: true })).toBeVisible();
+  await page.locator('.account-nav a[href="#overview"]').click();
+  await expect(page.getByRole('heading', { name: 'Здравствуйте, Айдана.' })).toBeVisible();
+  expect(requests.filter((r) => r.path === '/dashboard')).toHaveLength(1);
+  await page.locator('.account-nav a[href="#settings"]').click();
+  await page.getByLabel('Ваше имя', { exact: true }).fill('Учитель');
+  await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+  await expect(page.locator('#workspace-status')).not.toBeEmpty();
+  await page.locator('.account-nav a[href="#overview"]').click();
+  await expect(page.getByRole('heading', { name: 'Здравствуйте, Учитель.' })).toBeVisible();
+  expect(requests.filter((r) => r.path === '/dashboard')).toHaveLength(2);
+  await page.locator('.account-nav a[href="#tokens"]').click();
+  await expect(page.locator('#workspace-content')).toContainText('94');
+  expect(requests.filter((r) => r.path === '/me/tokens/transactions')).toHaveLength(1);
+  expect(requests.filter((r) => r.path === '/me/tokens')).toHaveLength(0);
 });

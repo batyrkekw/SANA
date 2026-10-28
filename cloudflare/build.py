@@ -50,3 +50,15 @@ shutil.copytree(
     dirs_exist_ok=True,
     ignore=shutil.ignore_patterns("wrangler.jsonc"),
 )
+(OUT / "site/sana-config.json").write_text(
+    json.dumps(
+        {
+            "auth_configured": True,
+            "supabase_url": values["SANA_SUPABASE_URL"],
+            "supabase_publishable_key": public_key,
+            "google_oauth_enabled": False,
+            "api_base": "/api/v1",
+        }
+    )
+    + "\n"
+)

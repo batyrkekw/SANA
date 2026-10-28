@@ -7,6 +7,9 @@
     "python_workers"
   ],
   "workers_dev": true,
+  "placement": {
+    "region": "aws:ap-southeast-1"
+  },
   "assets": {
     "directory": "../dist",
     "binding": "ASSETS",

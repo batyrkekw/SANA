@@ -21,6 +21,9 @@ remaining reservation. Disposable test records were removed without changing use
 - Supabase PostgreSQL, private `sana` schema; `anon` and `authenticated` cannot access it.
 - A dedicated `sana_runtime` role can read plans and modify application tables only.
 - Hyperdrive uses verified TLS with the Supabase CA and disables query caching.
+- The fetch handler is placed near Supabase in `aws:ap-southeast-1` (Singapore).
+  `cf-placement: remote-SIN` confirms placement. `Server-Timing` reports application,
+  database and SQL-guard wait durations without exposing queries or credentials.
 - Synchronous SQL operations are serialized with request-local timer waits. A plain
   `asyncio.Lock` caused concurrent HTTP requests to be canceled as hanging promises
   and left the isolate locked. Authentication completes before acquiring the SQL guard.
@@ -30,8 +33,16 @@ remaining reservation. Disposable test records were removed without changing use
   every session's connection. Request-local lock polling is limited to four wakeups per
   second, and response headers use pure ASGI middleware to reduce runtime overhead.
 - Cabinet navigation cancels stale reads and clears the previous section immediately.
-  Initial dashboard data is reused instead of loading twice; token balances use the
-  smaller balance endpoint. This reduces overlapping work on the free Workers CPU budget.
+  Initial dashboard data is reused instead of loading twice; token balances arrive with
+  the transaction history. This reduces overlapping work on the free Workers CPU budget.
+- Material pages batch attachments in one query and omit full lesson content; job history
+  joins saved material IDs instead of querying each row. A 12-material page takes five SQL
+  statements including profile lookup; a job page takes three. Token history includes its
+  balance in the same response.
+- Pages serves public Auth configuration from the generated `sana-config.json` asset and
+  caches the public plan catalogue for 60 seconds. Private routes always reach the API.
+  Cabinet reads have a user-scoped, page-memory cache of 15 seconds (plans: five minutes),
+  cleared on writes/sign-out/account changes. Active generations bypass these cached reads.
 - Cloudflare Queues execute text generation. A one-minute Cron drains the database outbox
   and refunds expired jobs. Duplicate delivery never creates a second charge/material.
 - Workers AI: `@cf/qwen/qwen3-30b-a3b-fp8`, not the local `sana-qwen3:4b` model.
@@ -107,12 +118,28 @@ invalid-bearer `/api/v1/dashboard` request, followed by an authenticated dashboa
 Also abort a read request while it is accessing the database, then repeat the concurrent
 checks. Sequential health checks alone did not expose either request-lock failure. Both
 the concurrent and disconnect checks passed on the public deployment (200/200/401).
-All 53 backend tests passed, including cancellation, retained transaction cleanup and
+All 54 backend tests passed, including cancellation, retained transaction cleanup and
 rejecting authentication before opening a DB session. Cloud generation was rechecked:
 one completed three-question quiz, one 6-token charge, no remaining reservation.
-The six browser regression tests include delayed reads, cancellation and switching away
+The seven browser regression tests include delayed reads, cancellation and switching away
 from settings; these tests use API fixtures. The public authenticated browser was checked
 separately with real account data and a quote that did not reserve or spend tokens.
+
+### Performance and Mac independence check, 29 October 2026
+
+These are observed single-client timings, not a load-test guarantee. Before optimization,
+the overview took about 8 seconds; public plans took 1.6–2.2 seconds. Afterward, a fresh
+material read took 1.11 seconds, the overview 0.63 seconds, a full cabinet reload 1.33 seconds,
+and a cached return 0.35 seconds. Edge configuration returned in 0.15 seconds and cached
+public plans in 0.08 seconds. A cold catalogue miss can still take longer.
+
+The local frontend, FastAPI, Celery and Ollama processes were suspended and the project's
+PostgreSQL/Redis containers paused. Local HTTP probes timed out while public readiness and
+configuration returned 200. A fresh authenticated cabinet reload and saved lesson worked.
+A disposable cloud job completed through Cron → Queue → Workers AI → Supabase: three quiz
+questions, exactly one 6-token charge, zero remaining reservation. Test rows were removed
+and all previously running local services resumed. The Mac was not powered off; none of its
+application services could answer during this check. Cloud images remain disabled.
 
 ## Email delivery
 

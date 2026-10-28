@@ -1,6 +1,9 @@
 import uuid
 
 import pytest
+from sqlalchemy import event
+
+from app.models import Asset, Job, Material
 
 pytestmark = pytest.mark.postgres
 
@@ -81,3 +84,71 @@ def test_large_request_rejected_without_echoing_body(client):
     )
     assert response.status_code == 413
     assert "xxxx" not in response.text
+
+
+def test_list_query_count_stays_bounded_and_attachments_belong_to_owner(
+    client, factory, owner, pg_engine, quiz
+):
+    headers = {"Authorization": f"Bearer {owner.supabase_id}"}
+    with factory.begin() as db:
+        for i in range(12):
+            job = Job(
+                owner_id=owner.id,
+                idempotency_key=f"list-{i}",
+                request_hash="x",
+                request={},
+                status="completed",
+                cost=6,
+            )
+            db.add(job)
+            db.flush()
+            material = Material(
+                owner_id=owner.id,
+                job_id=job.id,
+                title=f"Quiz {i}",
+                subject="Math",
+                topic="Addition",
+                language="ru",
+                kind="quiz",
+                content=quiz,
+            )
+            db.add(material)
+            db.flush()
+            db.add(
+                Asset(
+                    owner_id=owner.id,
+                    material_id=material.id,
+                    storage_key=f"test/{i}.png",
+                    size=10,
+                    metadata_json={"index": i},
+                )
+            )
+    statements = []
+
+    def count(_conn, _cursor, statement, *_args):
+        statements.append(statement)
+
+    event.listen(pg_engine, "before_cursor_execute", count)
+    try:
+        page = client.get("/api/v1/materials", headers=headers)
+        assert page.status_code == 200
+        assert len(statements) <= 5
+        assert page.json()["total"] == 12
+        assert all(len(row["assets"]) == 1 and "content" not in row for row in page.json()["items"])
+        assert len({row["assets"][0]["id"] for row in page.json()["items"]}) == 12
+        statements.clear()
+        overview = client.get("/api/v1/dashboard", headers=headers)
+        assert overview.status_code == 200
+        assert len(statements) <= 5
+        assert overview.json()["material_count"] == 12
+        statements.clear()
+        jobs = client.get("/api/v1/generations", headers=headers)
+        assert jobs.status_code == 200
+        assert len(statements) <= 3
+        assert all(row["material_id"] for row in jobs.json()["items"])
+    finally:
+        event.remove(pg_engine, "before_cursor_execute", count)
+    outsider = {"Authorization": f"Bearer {uuid.uuid4()}"}
+    assert client.get("/api/v1/materials", headers=outsider).json()["items"] == []
+    history = client.get("/api/v1/me/tokens/transactions", headers=headers).json()
+    assert history["tokens"] == {"available": 100, "reserved": 0}

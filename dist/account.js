@@ -1,4 +1,4 @@
-import { api, connect } from './session.js';
+import { api, connect, clearReads } from './session.js';
 import {
   t,
   lang,
@@ -63,7 +63,7 @@ function topbar() {
     .toUpperCase();
 }
 async function refreshDashboard(read = api) {
-  dashboard = await read('/dashboard');
+  dashboard = await read('/dashboard', { cacheFor: 15000 });
   topbar();
 }
 function route() {
@@ -74,7 +74,9 @@ async function render({ reuseDashboard = false } = {}) {
   routeController?.abort();
   const controller = (routeController = new AbortController());
   const read = async (path) => {
-    const data = await api(path, { signal: controller.signal });
+    const cacheFor = path.startsWith('/generations') || dashboard?.tokens.reserved
+      ? 0 : path === '/plans' ? 300000 : 15000;
+    const data = await api(path, { signal: controller.signal, cacheFor });
     controller.signal.throwIfAborted();
     return data;
   };
@@ -118,6 +120,8 @@ async function render({ reuseDashboard = false } = {}) {
       html = await generator(read);
     } else if (view === 'jobs') {
       const data = await read(`/generations?page=${jobPage}`);
+      // Completion can happen in another process/tab; discard pre-generation reads.
+      clearReads();
       html = title(t('generationHistory')) + jobsHTML(data) + pagination(data, 'jobs');
       if (data.items.some((job) => ['queued', 'processing'].includes(job.status)))
         pollTimer = setTimeout(() => {
@@ -125,7 +129,7 @@ async function render({ reuseDashboard = false } = {}) {
         }, 4000);
     } else if (view === 'tokens') {
       const data = await read(`/me/tokens/transactions?page=${tokenPage}`);
-      dashboard.tokens = await read('/me/tokens');
+      dashboard.tokens = data.tokens;
       topbar();
       html =
         title(t('tokenHistory'), t('tokensExplanation')) +
