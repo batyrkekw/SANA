@@ -1,0 +1,49 @@
+{
+  "name": "learn-sana",
+  "account_id": "1f10d8debbf323a3c6778e33f1cb1f78",
+  "main": ".build/entry.py",
+  "compatibility_date": "2026-10-28",
+  "compatibility_flags": [
+    "python_workers"
+  ],
+  "workers_dev": true,
+  "assets": {
+    "directory": "../dist",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/api/*",
+      "/health/*"
+    ],
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  },
+  "ai": {
+    "binding": "AI"
+  },
+  "queues": {
+    "producers": [
+      {
+        "binding": "JOBS",
+        "queue": "sana-generations"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "sana-generations",
+        "max_batch_size": 1,
+        "max_batch_timeout": 1,
+        "max_retries": 3,
+        "max_concurrency": 2
+      }
+    ]
+  },
+  "triggers": {
+    "crons": [
+      "* * * * *"
+    ]
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.1
+  }
+}

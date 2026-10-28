@@ -1,0 +1,7 @@
+{
+  "name": "learn-sana",
+  "account_id": "1f10d8debbf323a3c6778e33f1cb1f78",
+  "pages_build_output_dir": ".build/site",
+  "compatibility_date": "2026-10-28",
+  "services": [{"binding": "API", "service": "learn-sana"}]
+}

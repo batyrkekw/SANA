@@ -11,12 +11,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from redis import Redis
 from sqlalchemy import delete, func, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.ai import LocalDiffusersProvider, LocalLLMProvider
 from app.config import ROOT, get_settings
 from app.db import get_db, get_engine
 from app.errors import AppError
@@ -24,7 +22,6 @@ from app.models import Asset, Job, Material, Plan, Profile, TokenAccount, TokenT
 from app.schemas import GenerationInput, MaterialInput, MaterialUpdate, ProfileUpdate
 from app.security import Identity, get_identity
 from app.services import cancel_job, create_job, ensure_profile, quote, user_plan
-from app.storage import LocalStorageProvider
 
 logger = logging.getLogger("sana.api")
 config = get_settings()
@@ -43,7 +40,11 @@ async def upkeep():
 
 @asynccontextmanager
 async def lifespan(_app):
-    task = asyncio.create_task(upkeep()) if config.environment != "test" else None
+    task = (
+        asyncio.create_task(upkeep())
+        if config.environment != "test" and config.runtime == "local"
+        else None
+    )
     yield
     if task:
         task.cancel()
@@ -238,7 +239,11 @@ def live():
 
 
 @app.get("/health/ready")
-def ready():
+async def ready():
+    if config.runtime == "cloudflare":
+        return await app.state.cloud.ready()
+    from redis import Redis
+
     checks = {"database": False, "redis": False}
     try:
         with get_engine().connect() as connection:
@@ -402,6 +407,10 @@ def remove_material(material_id: uuid.UUID, user: User, db: DB):
     db.execute(delete(Asset).where(Asset.material_id == material.id))
     db.delete(material)
     db.commit()
+    if not keys:
+        return
+    from app.storage import LocalStorageProvider
+
     for key in keys:
         try:
             LocalStorageProvider(config.storage_dir).delete(key)
@@ -411,6 +420,10 @@ def remove_material(material_id: uuid.UUID, user: User, db: DB):
 
 @app.get("/api/v1/assets/{asset_id}")
 def read_asset(asset_id: uuid.UUID, user: User, db: DB):
+    if config.runtime == "cloudflare":
+        raise AppError("image_model_not_enabled", 503)
+    from app.storage import LocalStorageProvider
+
     asset = owned(db, Asset, asset_id, user.id)
     path = LocalStorageProvider(config.storage_dir).resolve(asset.storage_key)
     if not path.is_file():
@@ -487,6 +500,10 @@ def cancel(job_id: uuid.UUID, user: User, db: DB):
 
 @app.get("/api/v1/ai/status")
 def ai_status(_user: User):
+    if config.runtime == "cloudflare":
+        return app.state.cloud.ai_status()
+    from app.ai import LocalDiffusersProvider, LocalLLMProvider
+
     return {
         "text": LocalLLMProvider(config).health_check(),
         "image": LocalDiffusersProvider(config).health_check(),
@@ -496,6 +513,10 @@ def ai_status(_user: User):
 
 @app.get("/api/v1/ai/models")
 def models(_user: User):
+    if config.runtime == "cloudflare":
+        return app.state.cloud.models()
+    from app.ai import LocalDiffusersProvider
+
     return {
         "text": {"id": config.llm_model or None, "provider": "local_openai_compatible"},
         "image": LocalDiffusersProvider(config).get_model_info(),

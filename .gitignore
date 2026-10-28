@@ -17,3 +17,9 @@ __pycache__/
 dist/vendor/
 test-results/
 playwright-report/
+.wrangler/
+.venv-workers/
+python_modules/
+.dev.vars*
+cloudflare/.build/
+cloudflare/wrangler.local.json

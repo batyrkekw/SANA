@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="SANA_", env_file=ROOT / ".env", extra="ignore")
     environment: Literal["development", "test", "production"] = "development"
+    runtime: Literal["local", "cloudflare"] = "local"
     database_url: SecretStr = SecretStr(
         "postgresql+psycopg://sana:sana_local_only@127.0.0.1:5432/sana"
     )
@@ -43,6 +44,7 @@ class Settings(BaseSettings):
     max_request_bytes: int = Field(65536, ge=1024, le=1048576)
     max_result_bytes: int = Field(131072, ge=1024, le=1048576)
     max_active_jobs: int = Field(2, ge=1, le=10)
+    daily_generation_limit: int = Field(0, ge=0, le=100000)
     job_timeout_seconds: int = Field(900, ge=60, le=7200)
     queue_timeout_seconds: int = Field(3600, ge=60, le=86400)
     costs: dict[str, int] = {"lesson": 10, "quiz": 6, "flashcards": 6, "comic": 12, "image": 10}

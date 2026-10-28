@@ -1,0 +1,6 @@
+{
+  "id": "dc1e6eae-36b8-4763-8027-480a21e96df1",
+  "name": "sana-supabase-ca",
+  "source": "https://supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt",
+  "expires": "2031-04-26"
+}

@@ -1,0 +1,10 @@
+[project]
+name = "sana-cloudflare"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+  "fastapi==0.162.0", "pydantic==2.14.1", "pydantic-settings==2.16.1",
+  "sqlalchemy==2.0.55", "pg8000==1.31.5", "pyjwt==2.15.1", "httpx==0.28.1",
+]
+[dependency-groups]
+dev = ["workers-py==1.17.9", "workers-runtime-sdk==1.9.5"]

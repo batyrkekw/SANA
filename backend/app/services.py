@@ -104,6 +104,13 @@ def create_job(
         if existing.request_hash != fingerprint:
             raise AppError("idempotency_conflict", 409)
         return existing, False
+    if settings.daily_generation_limit:
+        # One shared plan lock serializes the deployment-wide free inference budget.
+        db.scalar(select(Plan).where(Plan.code == "basic").with_for_update())
+        day = utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        daily_count = db.scalar(select(func.count()).select_from(Job).where(Job.created_at >= day))
+        if daily_count >= settings.daily_generation_limit:
+            raise AppError("daily_generation_limit", 429)
     recent = db.scalar(
         select(func.count())
         .select_from(Job)
