@@ -21,6 +21,8 @@ remaining reservation. Disposable test records were removed without changing use
 - Synchronous SQL operations are serialized with request-local timer waits. A plain
   `asyncio.Lock` caused concurrent HTTP requests to be canceled as hanging promises
   and left the isolate locked. Authentication completes before acquiring the SQL guard.
+- HTTP tasks are retained with `waitUntil` and shielded from client cancellation so
+  navigating away cannot interrupt transaction cleanup and strand the SQL guard.
 - Cloudflare Queues execute text generation. A one-minute Cron drains the database outbox
   and refunds expired jobs. Duplicate delivery never creates a second charge/material.
 - Workers AI: `@cf/qwen/qwen3-30b-a3b-fp8`, not the local `sana-qwen3:4b` model.
@@ -93,9 +95,12 @@ its own dependencies for local Uvicorn/Celery/Diffusers operation.
 
 Regression checks must include simultaneous `/api/v1/plans`, `/health/ready`, and an
 invalid-bearer `/api/v1/dashboard` request, followed by an authenticated dashboard load.
-Sequential health checks alone did not expose the request-lock failure. The concurrent
-public checks passed after the fix (200/200/401); 52 backend tests also passed, including
-canceling a lock owner/waiter and rejecting authentication before opening a DB session.
+Also abort a read request while it is accessing the database, then repeat the concurrent
+checks. Sequential health checks alone did not expose either request-lock failure. Both
+the concurrent and disconnect checks passed on the public deployment (200/200/401).
+All 53 backend tests passed, including cancellation, retained transaction cleanup and
+rejecting authentication before opening a DB session. Cloud generation was rechecked:
+one completed three-question quiz, one 6-token charge, no remaining reservation.
 
 ## Email delivery
 

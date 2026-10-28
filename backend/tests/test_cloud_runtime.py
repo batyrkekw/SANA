@@ -88,6 +88,35 @@ def test_cloud_sql_canceled_owner_releases_following_requests():
     asyncio.run(scenario())
 
 
+def test_cloud_disconnect_keeps_transaction_cleanup_alive():
+    async def scenario():
+        lock = cloud.RequestLocalLock()
+        entered, complete = asyncio.Event(), asyncio.Event()
+        retained, finished = [], []
+
+        async def application():
+            async with lock:
+                entered.set()
+                await complete.wait()
+                finished.append("transaction closed")
+
+        request = asyncio.create_task(cloud.complete_request(application(), retained.append))
+        await entered.wait()
+        request.cancel()
+        import pytest
+
+        with pytest.raises(asyncio.CancelledError):
+            await request
+        assert len(retained) == 1 and not retained[0].done()
+        complete.set()
+        await asyncio.wait_for(retained[0], timeout=1)
+        assert finished == ["transaction closed"]
+        async with asyncio.timeout(1), lock:
+            pass
+
+    asyncio.run(scenario())
+
+
 def test_cloud_delivery_is_idempotent_and_charges_once(factory, owner, config, quiz, monkeypatch):
     job_id = prepared(factory, owner, config)
     calls = []

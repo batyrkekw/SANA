@@ -50,6 +50,14 @@ class RequestLocalLock:
 sql_lock = RequestLocalLock()
 
 
+async def complete_request(operation, keep_alive):
+    # A browser navigation can disconnect midway through synchronous SQL. Keep
+    # the ASGI task alive so its transaction/session/guard finally blocks finish.
+    task = asyncio.create_task(operation)
+    keep_alive(task)
+    return await asyncio.shield(task)
+
+
 def factory_for(env):
     hd = env.HYPERDRIVE
     engine = create_engine(

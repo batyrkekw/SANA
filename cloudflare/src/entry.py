@@ -20,7 +20,7 @@ os.environ.update(
     }
 )
 
-from cloud_runtime import CloudRuntime, cloud_database  # noqa: E402
+from cloud_runtime import CloudRuntime, cloud_database, complete_request  # noqa: E402
 from sqlalchemy.orm import configure_mappers  # noqa: E402
 
 from app.db import get_db  # noqa: E402
@@ -35,7 +35,9 @@ app.dependency_overrides[get_db] = cloud_database
 
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
-        return await asgi.fetch(app, request, self.env, self.ctx)
+        return await complete_request(
+            asgi.fetch(app, request, self.env, self.ctx), self.ctx.waitUntil
+        )
 
     async def queue(self, batch, _env=None, _ctx=None):
         for message in batch.messages:
