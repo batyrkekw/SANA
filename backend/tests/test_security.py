@@ -7,6 +7,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
 
 from app.config import Settings
+from app.db import get_db
 from app.errors import AppError
 from app.main import app
 from app.security import TokenVerifier, get_verifier
@@ -82,6 +83,11 @@ def test_signature_and_algorithm_confusion_rejected(signer):
 def test_anonymous_and_expired_api_access_denied(signer):
     key, verifier, claims = signer
     app.dependency_overrides[get_verifier] = lambda: verifier
+
+    def forbidden_database():
+        raise AssertionError("Rejected authentication must not reserve a database session")
+
+    app.dependency_overrides[get_db] = forbidden_database
     try:
         with TestClient(app) as client:
             assert client.get("/api/v1/profile").status_code == 401

@@ -19,7 +19,35 @@ from app.schemas import GenerationInput
 from app.services import lock_account, settle
 
 logger = logging.getLogger("sana.cloud")
-sql_lock = asyncio.Lock()
+
+
+class RequestLocalLock:
+    """Serialize synchronous sockets without waking futures from another request.
+
+    Workers binds pending I/O to the request that created it. An asyncio.Lock
+    waiter resumed by a different request can be canceled as a hanging promise,
+    leaving the isolate locked. Poll with the waiting request's own timer instead.
+    Checking and taking the flag has no await, so it is atomic in this runtime.
+    """
+
+    def __init__(self):
+        self._locked = False
+
+    async def __aenter__(self):
+        try:
+            async with asyncio.timeout(15):
+                while self._locked:
+                    await asyncio.sleep(0.025)
+                self._locked = True
+        except TimeoutError as error:
+            raise AppError("database_unavailable", 503) from error
+        return self
+
+    async def __aexit__(self, *_exc):
+        self._locked = False
+
+
+sql_lock = RequestLocalLock()
 
 
 def factory_for(env):

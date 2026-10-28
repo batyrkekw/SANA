@@ -18,6 +18,9 @@ remaining reservation. Disposable test records were removed without changing use
 - Supabase PostgreSQL, private `sana` schema; `anon` and `authenticated` cannot access it.
 - A dedicated `sana_runtime` role can read plans and modify application tables only.
 - Hyperdrive uses verified TLS with the Supabase CA and disables query caching.
+- Synchronous SQL operations are serialized with request-local timer waits. A plain
+  `asyncio.Lock` caused concurrent HTTP requests to be canceled as hanging promises
+  and left the isolate locked. Authentication completes before acquiring the SQL guard.
 - Cloudflare Queues execute text generation. A one-minute Cron drains the database outbox
   and refunds expired jobs. Duplicate delivery never creates a second charge/material.
 - Workers AI: `@cf/qwen/qwen3-30b-a3b-fp8`, not the local `sana-qwen3:4b` model.
@@ -87,6 +90,12 @@ The account configured here is the owner's existing main Cloudflare account
 Updates after the first deployment use step 6; **do not run the data migration again**.
 The checked-in dependency locks pin the Python runtime packages. `backend/` continues to use
 its own dependencies for local Uvicorn/Celery/Diffusers operation.
+
+Regression checks must include simultaneous `/api/v1/plans`, `/health/ready`, and an
+invalid-bearer `/api/v1/dashboard` request, followed by an authenticated dashboard load.
+Sequential health checks alone did not expose the request-lock failure. The concurrent
+public checks passed after the fix (200/200/401); 52 backend tests also passed, including
+canceling a lock owner/waiter and rejecting authentication before opening a DB session.
 
 ## Email delivery
 

@@ -32,8 +32,60 @@ def prepared(factory, owner, config, key="cloud-test-0001"):
 def runtime(factory, config, monkeypatch, generate):
     monkeypatch.setattr(cloud, "factory_for", lambda _: factory)
     # Each test runs its own loop. Keep one SQL lock per deployed isolate in production.
-    monkeypatch.setattr(cloud, "sql_lock", asyncio.Lock())
+    monkeypatch.setattr(cloud, "sql_lock", cloud.RequestLocalLock())
     return cloud.CloudRuntime(SimpleNamespace(AI=SimpleNamespace(run=generate)), config)
+
+
+def test_cloud_sql_requests_remain_serialized_after_waiter_cancellation():
+    async def scenario():
+        lock = cloud.RequestLocalLock()
+        entered = []
+
+        async def request(number):
+            async with lock:
+                entered.append(number)
+                await asyncio.sleep(0.01)
+                assert entered[-1] == number
+
+        async with lock:
+            canceled = asyncio.create_task(request(0))
+            queued = [asyncio.create_task(request(number)) for number in range(1, 4)]
+            await asyncio.sleep(0.01)
+            canceled.cancel()
+            import pytest
+
+            with pytest.raises(asyncio.CancelledError):
+                await canceled
+            assert entered == []
+        await asyncio.wait_for(asyncio.gather(*queued), timeout=1)
+        assert sorted(entered) == [1, 2, 3]
+        await request(4)
+        assert entered[-1] == 4
+
+    asyncio.run(scenario())
+
+
+def test_cloud_sql_canceled_owner_releases_following_requests():
+    async def scenario():
+        lock = cloud.RequestLocalLock()
+        entered = asyncio.Event()
+
+        async def owner():
+            async with lock:
+                entered.set()
+                await asyncio.sleep(60)
+
+        task = asyncio.create_task(owner())
+        await entered.wait()
+        task.cancel()
+        import pytest
+
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        async with asyncio.timeout(1), lock:
+            pass
+
+    asyncio.run(scenario())
 
 
 def test_cloud_delivery_is_idempotent_and_charges_once(factory, owner, config, quiz, monkeypatch):

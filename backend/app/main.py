@@ -156,7 +156,7 @@ async def unexpected_error(_request, _error):
 DB = Annotated[Session, Depends(get_db, scope="function")]
 
 
-def current_profile(db: DB, identity: Annotated[Identity, Depends(get_identity)]) -> Profile:
+def current_profile(identity: Annotated[Identity, Depends(get_identity)], db: DB) -> Profile:
     return ensure_profile(db, identity)
 
 
