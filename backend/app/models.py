@@ -1,7 +1,16 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import JSON, CheckConstraint, DateTime, ForeignKey, Index, String, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    String,
+    UniqueConstraint,
+    false,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -31,6 +40,8 @@ class Profile(Record, Base):
     display_name: Mapped[str] = mapped_column(String(80))
     language: Mapped[str] = mapped_column(String(2), default="ru")
     settings: Mapped[dict] = mapped_column(JSON, default=dict)
+    # Set only through the administrator CLI; never from Auth/user metadata or settings.
+    is_admin: Mapped[bool] = mapped_column(default=False, server_default=false())
     __table_args__ = (CheckConstraint("language IN ('ru', 'kk')"),)
 
 
@@ -64,7 +75,7 @@ class Job(Record, Base):
     execution_id: Mapped[uuid.UUID | None]
     __table_args__ = (
         UniqueConstraint("owner_id", "idempotency_key"),
-        CheckConstraint("cost > 0"),
+        CheckConstraint("cost >= 0", name="ck_generation_jobs_cost_nonnegative"),
         CheckConstraint("status IN ('queued','processing','completed','failed','cancelled')"),
         Index("ix_jobs_dispatch", "status", "dispatched_at"),
     )

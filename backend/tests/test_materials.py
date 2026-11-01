@@ -17,6 +17,7 @@ def test_profiles_materials_and_ownership(client, quiz):
     assert client.get("/api/v1/me/tokens", headers=alice).json() == {
         "available": 100,
         "reserved": 0,
+        "unlimited": False,
     }
     assert client.get("/api/v1/profile", headers=bob).json()["id"] != first.json()["id"]
     invalid = client.patch(
@@ -151,4 +152,4 @@ def test_list_query_count_stays_bounded_and_attachments_belong_to_owner(
     outsider = {"Authorization": f"Bearer {uuid.uuid4()}"}
     assert client.get("/api/v1/materials", headers=outsider).json()["items"] == []
     history = client.get("/api/v1/me/tokens/transactions", headers=headers).json()
-    assert history["tokens"] == {"available": 100, "reserved": 0}
+    assert history["tokens"] == {"available": 100, "reserved": 0, "unlimited": False}

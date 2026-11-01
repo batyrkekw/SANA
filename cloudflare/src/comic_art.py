@@ -9,10 +9,9 @@ import re
 
 from app.errors import AppError
 
-MODEL = "@cf/black-forest-labs/flux-2-dev"
-# Server-controlled quality/budget: 512px output and 20 denoising steps.
+MODEL = "@cf/black-forest-labs/flux-2-klein-4b"
+# One 512px page per comic, distilled four-step model (Apache-2.0).
 IMAGE_SIZE = 512
-IMAGE_STEPS = 20
 logger = logging.getLogger("sana.art")
 MAX_PANEL_BYTES = 1024 * 1024
 
@@ -21,8 +20,17 @@ class TransientRenderError(AppError):
     pass
 
 
+def daily_quota_exhausted(exc):
+    message = str(exc).lower()
+    return "daily free allocation" in message and any(
+        word in message for word in ("used up", "exceed", "exhaust")
+    )
+
+
 def provider_error(exc):
     # Never log provider messages (they can echo the prompt). Classify locally.
+    if daily_quota_exhausted(exc):
+        return AppError("ai_daily_quota_exhausted", 429)
     message = str(exc).lower()
     denied = any(
         word in message
@@ -126,24 +134,48 @@ async def visual_briefs(ai, model, content):
     return result
 
 
-async def render_panel(ai, scene, style, reference):
-    from workers import Blob, FormData, Response
+def page_prompt(briefs, style):
+    """All frames share one canvas; positions are structural, never model-generated JSON."""
+    layouts = {
+        1: ("one full-page panel", ["Full page"]),
+        2: ("two equal panels side by side", ["Left", "Right"]),
+        3: (
+            "two equal panels across the top and one wide panel below",
+            ["Top left", "Top right", "Bottom"],
+        ),
+        4: (
+            "a strict 2 by 2 grid of four equal square panels",
+            ["Top left", "Top right", "Bottom left", "Bottom right"],
+        ),
+    }
+    if len(briefs) not in layouts:
+        raise AppError("plan_limit", 422)
+    layout, positions = layouts[len(briefs)]
+    scenes = "\n".join(
+        f"{position} panel: {brief[:1000]}"
+        for position, brief in zip(positions, briefs, strict=True)
+    )
+    return (
+        f"Draw ONE complete {style} educational comic page with {layout}. "
+        "Use thin straight black panel borders and narrow white gutters. Read left to right, top to bottom. "
+        "Each panel is a different moment of ONE coherent story. Repeat the SAME characters, "
+        "clothing, objects and drawing style. Clean hand-drawn outlines, flat warm colors, "
+        "simple uncluttered backgrounds, large clear subjects. Keep physical counts and connections accurate. "
+        "No text, letters, numbers, captions, labels, speech bubbles or extra panels. "
+        "Do not merge the moments into a single scene.\n" + scenes
+    )
 
-    prompt = f"{scene[:1400]} Single {style} educational comic panel. Show the specific subject and its state clearly in one coherent scene. No lettering or speech balloons."
-    if reference:
-        prompt += " Use image 0 ONLY as a reference for character identity and drawing style. Recompose the panel to show the requested change. The essential object must be visibly present in its surroundings."
+
+async def render_page(ai, briefs, style):
+    from workers import FormData, Response
+
     form = FormData(
         {
-            "prompt": prompt,
+            "prompt": page_prompt(briefs, style),
             "width": str(IMAGE_SIZE),
             "height": str(IMAGE_SIZE),
-            "steps": str(IMAGE_STEPS),
-            "guidance": "4",
         }
     )
-    if reference:
-        data, mime = reference
-        form.append("input_image_0", Blob([data], content_type=mime), "first-panel")
     packet = Response(form)
     try:
         result = await asyncio.wait_for(

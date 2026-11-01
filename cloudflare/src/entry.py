@@ -17,7 +17,7 @@ os.environ.update(
         "SANA_IMAGE_ENABLED": "true",
         "SANA_IMAGE_MAX_COUNT": "4",
         "SANA_JOB_TIMEOUT_SECONDS": "600",
-        "SANA_DAILY_GENERATION_LIMIT": "20",
+        "SANA_DAILY_GENERATION_LIMIT": "100",
     }
 )
 

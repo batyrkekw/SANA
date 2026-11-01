@@ -55,9 +55,9 @@ remaining reservation. Disposable test records were removed without changing use
 - Cloudflare Queues execute text and illustrated comic generation. A one-minute Cron drains the database outbox
   and refunds expired jobs. Duplicate delivery never creates a second charge/material.
 - Workers AI: `@cf/qwen/qwen3-30b-a3b-fp8`, not the local `sana-qwen3:4b` model.
-- Cloud inference has a deployment-wide cap of 20 new jobs per UTC day, in addition to
+- Cloud inference has a deployment-wide cap of 100 new jobs per UTC day, in addition to
   user token balances. Failed jobs refund user tokens but still count toward the daily cap.
-- Illustrated comics use Workers AI FLUX.2 dev and a private COMIC_ART KV namespace. Non-comic image generation remains local. The migration
+- Illustrated comics use Workers AI FLUX.2 klein 4B and a private COMIC_ART KV namespace. Non-comic image generation remains local. The migration
   stops if local image assets exist instead of silently losing those files.
 - Quotas of the free Cloudflare/Supabase plans still apply. No paid plan is enabled by these
   scripts. The cap does not reserve the account's free AI allowance against other projects.
@@ -174,25 +174,33 @@ took 513 ms. Clicking a prefetched saved lesson took 70 ms. These are single-cli
 API reads completed successfully in the Worker tail. The browser fixtures now distinguish
 Supabase Auth IDs from internal profile IDs, matching production.
 
-## Illustrated comic pilot
+## Single-page comics and administrator testing
 
-The existing job reserves credit for the entire comic; four illustrated panels cost 52
-internal SANA tokens. Qwen first returns a validated script. FLUX receives one prompt per
-panel and the first finished picture as a reference for subsequent panels. Each square panel
-is requested at 512×512 with 20 steps and guidance 4. KV stores image bytes; PostgreSQL stores only the owner, order,
-MIME type, length and private key. Asset reads require the same authenticated owner as their
-material. Deleting a material removes the associated keys. Generation failures refund the
-whole reservation; staged files are cleaned up and duplicate deliveries do not regenerate.
-A failed KV deletion logs its key for operator cleanup.
+Current cloud comics use one FLUX.2 klein 4B image request for a 512×512 page (1–4 scenes).
+Qwen3-30B-A3B-FP8 generates the script and individual visual briefs; a deterministic prompt
+assigns the panels to reading-order positions. RU/KK captions remain accessible HTML.
+One private asset has `layout: comic_page` and `panel_count` metadata. It is both the cover
+and full reader page. Older per-panel assets still render correctly.
 
-Keep Workers Free and the existing 20-job daily cap. Up to four images per job plus a 128 MiB
-publication budget bound this pilot. Other Cloudflare usage shares the account allowance.
-See [Workers AI pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/)
-and [the FLUX input contract](https://developers.cloudflare.com/changelog/post/2025-11-25-flux-2-dev-workers-ai/).
-For the existing deployment, enable the comic entitlement once with
-`backend/.venv/bin/python cloudflare/enable_comic_plans.py` (root directory). It updates
-only comic limits in plan definitions, never individual balances. Do not rerun the original
-data migration. Fresh local installs use the definitions in `config/plans.json`.
+A normal illustrated comic costs 22 internal SANA tokens. Server-owned `profiles.is_admin`
+sets new jobs to cost 0; zero-delta reserve/charge/refund records preserve idempotency.
+Toggling admin never changes an existing job's charge or the numerical token balance.
+No public API accepts the flag. `python -m app.manage set-admin --supabase-id UUID --admin true`
+grants it; `--admin false` revokes it. Apply the existing-cloud schema upgrade with
+`backend/.venv/bin/python cloudflare/upgrade.py` before deploying. Never rerun `migrate.py`.
+
+The image estimate is 26.05 Neurons/page before Qwen/retries, within the shared daily free
+10,000-Neuron allocation. No paid plan is enabled. App limits remain 100 new jobs/day,
+two active jobs per user and 128 MiB published image storage; admin bypasses only SANA credit.
+Image phase timeout is 160 seconds with one transient retry; quota/safety failures are not
+retried. Failed jobs release their reservation and delete staged bytes. Duplicate queue
+deliveries do not regenerate. Ownership checks and authenticated asset reads are unchanged.
+
+Both selected models publish Apache-2.0 weights. The undistilled klein base 4B is a future
+training candidate, not the current hosted model. Custom image LoRA deployment is not currently
+supported by this Workers AI endpoint. See [AI and training notes](../docs/AI.md).
+
+## Historical per-panel pilot results (superseded configuration)
 
 The original klein 4B live pilot on 1 November completed in about 33 seconds after queue pickup: four 512×512
 JPEGs, one 52-token charge and zero remaining reservation. A separate failed provider call
@@ -207,9 +215,9 @@ mistakes. These images are not verified science diagrams. The creation form and 
 retain review guidance. This limitation should be evaluated before promoting illustrated
 lessons more widely.
 
-## Reader and model update, 1 November 2026
+## Historical reader and dev experiment, 1 November 2026
 
-FLUX.2 dev replaces the 4B pilot model after a bounded comparison against klein 9B on an
+FLUX.2 dev temporarily replaced the 4B pilot model after a bounded comparison against klein 9B on an
 identical bean-root prompt. Both generated the main object correctly; dev was chosen for
 its detail and lower estimated cost at 512px/20 steps. Four images + three references cost
 approximately 4125 Neurons, before Qwen and retries. The 10,000/day free account allowance

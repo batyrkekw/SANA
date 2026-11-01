@@ -153,17 +153,29 @@ def test_cloud_delivery_is_idempotent_and_charges_once(factory, owner, config, q
     assert len(calls) == 1
 
 
-def test_cloud_quota_or_provider_failure_refunds(factory, owner, config, monkeypatch):
+@pytest.mark.parametrize(
+    "message,code",
+    [
+        ("private provider error", "text_model_unavailable"),
+        (
+            "you have used up your daily free allocation of 10,000 neurons",
+            "ai_daily_quota_exhausted",
+        ),
+    ],
+)
+def test_cloud_quota_or_provider_failure_refunds(
+    factory, owner, config, monkeypatch, message, code
+):
     job_id = prepared(factory, owner, config)
 
     async def unavailable(*args):
-        raise RuntimeError("private provider error")
+        raise RuntimeError(message)
 
     worker = runtime(factory, config, monkeypatch, unavailable)
     asyncio.run(worker.generate(str(job_id)))
     with factory() as db:
         assert db.get(Job, job_id).status == "failed"
-        assert db.get(Job, job_id).error_code == "text_model_unavailable"
+        assert db.get(Job, job_id).error_code == code
         assert db.get(TokenAccount, owner.id).available == 100
         assert db.get(TokenAccount, owner.id).reserved == 0
 
@@ -250,7 +262,7 @@ def test_illustrated_comic_pipeline(factory, owner, config, monkeypatch):
         return {"choices": [{"message": {"content": json.dumps(content)}}]}
 
     worker = runtime(factory, config, monkeypatch, text_model)
-    storage, refs = {}, []
+    storage, calls = {}, []
 
     class KV:
         async def delete(self, key):
@@ -259,24 +271,24 @@ def test_illustrated_comic_pipeline(factory, owner, config, monkeypatch):
     worker.env.COMIC_ART = KV()
     fail = True
 
-    async def draw(ai, scene, style, reference):
-        refs.append(reference)
-        if fail and len(refs) == 3:
+    async def draw(ai, briefs, style):
+        calls.append(briefs)
+        if fail:
             raise AppError("image_inference_failed", 503)
-        if not fail and len(refs) == 1:
+        if not fail and len(calls) == 1:
             raise cloud.TransientRenderError("image_inference_failed", 503)
-        return scene.encode(), "image/jpeg"
+        return b"one complete page", "image/jpeg"
 
     async def put(_, key, image):
         storage[key] = image
 
-    monkeypatch.setattr(cloud, "render_panel", draw)
+    monkeypatch.setattr(cloud, "render_page", draw)
     monkeypatch.setattr(cloud, "store_panel", put)
 
     def run(key):
         with factory.begin() as db:
             job, _ = create_job(db, owner, req, key, config)
-            assert job.cost == 52
+            assert job.cost == 22
             job_id = job.id
         asyncio.run(worker.generate(str(job_id)))
         asyncio.run(worker.generate(str(job_id)))
@@ -288,19 +300,21 @@ def test_illustrated_comic_pipeline(factory, owner, config, monkeypatch):
         assert db.get(TokenAccount, owner.id).available == 100
         assert not storage and db.scalar(select(func.count()).select_from(Asset)) == 0
     fail = False
-    refs.clear()
+    calls.clear()
     done = run("complete-pilot")
-    assert refs == [None, None] + [(b"A lamp lights up a white wall in scene 0", "image/jpeg")] * 3
+    assert len(calls) == 2  # one bounded transient retry, not four image requests
+    assert all(len(briefs) == 4 for briefs in calls)
     with factory() as db:
         material = db.scalar(select(Material).where(Material.job_id == done))
         assets = sorted(db.scalars(select(Asset)).all(), key=lambda a: a.metadata_json["index"])
-        assert material.owner_id == owner.id and len(assets) == len(storage) == 4
-        assert [storage[a.storage_key][0] for a in assets] == [
-            f"A lamp lights up a white wall in scene {i}".encode() for i in range(4)
-        ]
+        assert material.owner_id == owner.id and len(assets) == len(storage) == 1
+        assert storage[assets[0].storage_key][0] == b"one complete page"
+        assert assets[0].metadata_json["layout"] == "comic_page"
+        assert assets[0].metadata_json["panel_count"] == 4
+        assert len(material.content["panels"]) == 4
         assert all(a.material_id == material.id and a.owner_id == owner.id for a in assets)
         account = db.get(TokenAccount, owner.id)
-        assert (account.available, account.reserved) == (48, 0)
+        assert (account.available, account.reserved) == (78, 0)
 
 
 def test_cloud_assets_obey_ownership_and_deletion(client, factory, monkeypatch, config, quiz):
@@ -401,6 +415,10 @@ def test_image_provider_retry_does_not_retry_quota_or_safety_failures():
 
     assert isinstance(provider_error(TimeoutError()), TransientRenderError)
     assert isinstance(provider_error(RuntimeError("503 Service Unavailable")), TransientRenderError)
+    quota = provider_error(
+        RuntimeError("you have used up your daily free allocation of 10,000 neurons")
+    )
+    assert quota.code == "ai_daily_quota_exhausted" and quota.status == 429
     for message in [
         "429 quota exceeded",
         "content safety policy",

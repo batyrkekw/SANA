@@ -744,6 +744,29 @@
   .preserve-lines {
     white-space: pre-wrap;
   }
+  .comic-page {
+    max-width: 640px;
+    margin: 28px auto 0;
+    padding: 12px;
+    border: 1px solid var(--p-line);
+    border-radius: 16px;
+    background: #fff;
+  }
+  .comic-page img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+    object-fit: contain;
+    border-radius: 8px;
+    background: #f3f0e8;
+  }
+  .comic-page figcaption {
+    margin-top: 12px;
+    font-size: 13px;
+    text-align: center;
+    color: var(--p-muted);
+  }
   .comic-panels,
   .flashcard-grid {
     display: grid;

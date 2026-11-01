@@ -34,7 +34,7 @@ const material = {
     ],
   },
 };
-async function setup(page, { signedIn = false, configured = true, reserved = 6 } = {}) {
+async function setup(page, { signedIn = false, configured = true, reserved = 6, admin = false } = {}) {
   const session = {
     access_token: 'browser-contract-token',
     refresh_token: 'browser-contract-refresh',
@@ -52,7 +52,7 @@ async function setup(page, { signedIn = false, configured = true, reserved = 6 }
   };
   let items = [],
     jobs = [],
-    profile = { id: profileId, display_name: 'Айдана', language: 'ru' };
+    profile = { id: profileId, display_name: 'Айдана', language: 'ru', is_admin: admin };
   const requests = [];
   await page.route('https://sana-test.supabase.co/**', async (route) => {
     requests.push({ url: route.request().url(), body: route.request().postDataJSON() });
@@ -90,14 +90,14 @@ async function setup(page, { signedIn = false, configured = true, reserved = 6 }
       data = {
         profile,
         plan,
-        tokens: { available: 94, reserved },
+        tokens: { available: 94, reserved, unlimited: admin },
         material_count: items.length,
         recent_materials: items,
       };
     else if (path === '/plans') data = [plan];
     else if (path === '/ai/status')
       data = { text: { status: 'available' }, image: { status: 'disabled' } };
-    else if (path === '/generations/quote') data = { cost: 6 };
+    else if (path === '/generations/quote') data = { cost: admin ? 0 : 6 };
     else if (path === '/generations' && req.method() === 'POST') {
       jobs = [
         {
@@ -130,7 +130,7 @@ async function setup(page, { signedIn = false, configured = true, reserved = 6 }
         page: 1,
         page_size: 20,
         total: 0,
-        tokens: { available: 94, reserved: 6 },
+        tokens: { available: 94, reserved: 6, unlimited: admin },
       };
     else if (path === '/me/tokens') data = { available: 94, reserved: 6 };
     else data = {};
@@ -658,4 +658,51 @@ test('comic cover survives background refresh; the whole card opens a cached ill
   await page.locator('.account-nav a[href="#materials"]').click();
   await expect(cover).toHaveClass('is-ready');
   await page.screenshot({ path: '.tooling/screenshots/comic-cover-mobile.png', fullPage: true });
+});
+
+test('administrator sees unlimited tokens and a zero-cost generation action', async ({ page }) => {
+  await setup(page, { signedIn: true, admin: true });
+  await page.goto('/account.html#overview');
+  await expect(page.locator('#top-balance')).toContainText('∞');
+  await expect(page.locator('#top-plan')).toHaveText('Администратор');
+  await page.goto('/account.html#tokens');
+  await expect(page.locator('.p-balance')).toContainText('∞');
+  await expect(page.locator('.p-page-title')).toContainText('не списываются');
+  await page.goto('/account.html#create?kind=comic');
+  await page.locator('#subject').fill('Физика');
+  await page.locator('#topic').fill('Тень');
+  await page.locator('#get-quote').click();
+  await expect(page.locator('#generate-submit')).toBeEnabled();
+  await expect(page.locator('#generate-submit')).toHaveText('Создать · без списания');
+});
+
+test('one comic page renders once with four readable captions and reuses its cover', async ({ page }) => {
+  await setup(page, { signedIn: true });
+  const comic = {
+    ...material, id: 'page-comic', kind: 'comic', title: 'Четыре сцены',
+    assets: [{ index: 0, url: '/api/v1/assets/page', layout: 'comic_page' }],
+    content: { objectives: ['Проверка'], panels: Array.from({ length: 4 }, (_, i) => ({
+      scene: `Сцена ${i + 1}`, dialogue: `Реплика ${i + 1}`, narration: `Пояснение ${i + 1}`,
+    })) },
+  };
+  await page.route('**/api/v1/materials?*', (route) => route.fulfill({ json: {
+    items: [comic], total: 1, page: 1, page_size: 12, subjects: ['Физика'],
+  } }));
+  await page.route('**/api/v1/materials/page-comic', (route) => route.fulfill({ json: comic }));
+  let downloads = 0;
+  await page.route('**/api/v1/assets/page', async (route) => {
+    downloads++;
+    await route.fulfill({ path: 'dist/examples/bean-comic/panel-1.jpg', contentType: 'image/jpeg' });
+  });
+  await page.goto('/account.html#materials');
+  await expect(page.locator('.material-cover img.is-ready')).toHaveCount(1);
+  await page.getByRole('link', { name: comic.title, exact: true }).click();
+  await expect(page.locator('.comic-page img.is-ready')).toHaveCount(1);
+  await expect(page.locator('.comic-frame')).toHaveCount(0);
+  await expect(page.locator('.comic-panels article')).toHaveCount(4);
+  await expect(page.locator('.comic-panels blockquote').nth(3)).toHaveText('Реплика 4');
+  expect(downloads).toBe(1);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: '.tooling/screenshots/comic-page-mobile.png', fullPage: true });
 });

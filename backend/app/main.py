@@ -206,6 +206,7 @@ def profile_data(profile):
         "id": profile.id,
         "display_name": profile.display_name,
         "language": profile.language,
+        "is_admin": profile.is_admin,
         "created_at": profile.created_at,
     }
 
@@ -229,6 +230,7 @@ def material_data(db, material, detail=False, assets=None):
                 "id": asset.id,
                 "url": f"/api/v1/assets/{asset.id}",
                 "index": asset.metadata_json.get("index", 0),
+                "layout": asset.metadata_json.get("layout", "panel"),
             }
             for asset in sorted(assets, key=lambda item: item.metadata_json.get("index", 0))
         ],
@@ -342,7 +344,11 @@ def my_plan(user: User, db: DB):
 @app.get("/api/v1/me/tokens")
 def balance(user: User, db: DB):
     account = db.get(TokenAccount, user.id)
-    return {"available": account.available, "reserved": account.reserved}
+    return {
+        "available": account.available,
+        "reserved": account.reserved,
+        "unlimited": user.is_admin,
+    }
 
 
 @app.get("/api/v1/me/tokens/transactions")
@@ -496,7 +502,11 @@ def dashboard(user: User, db: DB):
     return {
         "profile": profile_data(user),
         "plan": plan_data(plan),
-        "tokens": {"available": account.available, "reserved": account.reserved},
+        "tokens": {
+            "available": account.available,
+            "reserved": account.reserved,
+            "unlimited": user.is_admin,
+        },
         "material_count": db.scalar(
             select(func.count()).select_from(Material).where(Material.owner_id == user.id)
         ),

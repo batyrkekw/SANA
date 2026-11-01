@@ -7,6 +7,14 @@ from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from time import perf_counter
 
+from comic_art import (
+    MODEL,
+    TransientRenderError,
+    daily_quota_exhausted,
+    render_page,
+    store_panel,
+    visual_briefs,
+)
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import URL, create_engine, func, or_, select, text
@@ -19,14 +27,6 @@ from app.models import Asset, Job, Material, utcnow
 from app.prompts import generation_payload, parse_completion
 from app.schemas import GenerationInput
 from app.services import lock_account, settle
-
-from comic_art import (
-    MODEL,
-    TransientRenderError,
-    render_panel,
-    store_panel,
-    visual_briefs,
-)
 
 logger = logging.getLogger("sana.cloud")
 
@@ -132,9 +132,7 @@ class CloudRuntime:
                 factory = factory_for(self.env)
                 with factory() as db:
                     db.execute(text("SELECT version_num FROM sana.alembic_version"))
-            return JSONResponse(
-                {"database": True, "queue_configured": bool(self.env.JOBS)}
-            )
+            return JSONResponse({"database": True, "queue_configured": bool(self.env.JOBS)})
         except Exception:
             return JSONResponse({"database": False}, 503)
 
@@ -153,6 +151,8 @@ class CloudRuntime:
                 "status": "configured",
                 "kinds": ["comic"],
                 "max_panels": 4,
+                "layout": "comic_page",
+                "page_size": 512,
             },
             "checked_at": datetime.now(UTC),
         }
@@ -214,49 +214,29 @@ class CloudRuntime:
                 AttributeError,
             ) as error:
                 raise AppError("invalid_model_output", 502) from error
-            reference = None
             if request.include_images:
-                briefs = await visual_briefs(
-                    self.env.AI, self.config.llm_model, content
-                )
-                retried = False
-                async with asyncio.timeout(300):
-                    for index, prompt in enumerate(briefs):
-                        content["panels"][index]["image_prompt"] = prompt
-                        try:
-                            image = await render_panel(
-                                self.env.AI, prompt, request.style, reference
-                            )
-                        except TransientRenderError:
-                            if retried:
-                                raise
-                            retried = True
-                            await asyncio.sleep(1)
-                            image = await render_panel(
-                                self.env.AI, prompt, request.style, reference
-                            )
-                        if index == 0:
-                            reference = image
-                        key = f"comics/{owner_id}/{job_id}/{execution}/{index}"
-                        staged.append((key, image[1], len(image[0])))
-                        await store_panel(self.env.COMIC_ART, key, image)
+                briefs = await visual_briefs(self.env.AI, self.config.llm_model, content)
+                for panel, prompt in zip(content["panels"], briefs, strict=True):
+                    panel["image_prompt"] = prompt
+                async with asyncio.timeout(160):
+                    try:
+                        image = await render_page(self.env.AI, briefs, request.style)
+                    except TransientRenderError:
+                        await asyncio.sleep(1)
+                        image = await render_page(self.env.AI, briefs, request.style)
+                    key = f"comics/{owner_id}/{job_id}/{execution}/page"
+                    staged.append((key, image[1], len(image[0])))
+                    await store_panel(self.env.COMIC_ART, key, image)
             async with sql_lock:
                 with factory.begin() as db:
                     job = locked_job(db, job_id)
-                    if (
-                        not job
-                        or job.status != "processing"
-                        or job.execution_id != execution
-                    ):
+                    if not job or job.status != "processing" or job.execution_id != execution:
                         raise AppError("generation_timeout", 409)
                     if staged:
                         # Shared storage budget, serialized across isolates. Keep room in the free tier.
                         db.execute(select(func.pg_advisory_xact_lock(76155221)))
                         used = db.scalar(select(func.coalesce(func.sum(Asset.size), 0)))
-                        if (
-                            used + sum(size for _, _, size in staged)
-                            > 128 * 1024 * 1024
-                        ):
+                        if used + sum(size for _, _, size in staged) > 128 * 1024 * 1024:
                             raise AppError("comic_storage_full", 503)
                     material = Material(
                         owner_id=owner_id,
@@ -278,24 +258,28 @@ class CloudRuntime:
                                 storage_key=key,
                                 mime_type=mime,
                                 size=size,
-                                metadata_json={"index": index, "model": MODEL},
+                                metadata_json={
+                                    "index": index,
+                                    "model": MODEL,
+                                    "layout": "comic_page",
+                                    "prompt_version": "comic-page-v1",
+                                    "panel_count": len(content["panels"]),
+                                    "width": 512,
+                                    "height": 512,
+                                },
                             )
                         )
                     settle(db, job, True)
                     job.status, job.finished_at = "completed", utcnow()
             logger.info("generation_completed job=%s", job_id)
         except Exception as error:
-            code = (
-                error.code if isinstance(error, AppError) else "text_model_unavailable"
-            )
+            code = error.code if isinstance(error, AppError) else "text_model_unavailable"
+            if daily_quota_exhausted(error):
+                code = "ai_daily_quota_exhausted"
             async with sql_lock:
                 with factory.begin() as db:
                     job = locked_job(db, job_id)
-                    if (
-                        job
-                        and job.status == "processing"
-                        and job.execution_id == execution
-                    ):
+                    if job and job.status == "processing" and job.execution_id == execution:
                         settle(db, job, False)
                         job.status, job.error_code, job.finished_at = (
                             "failed",
@@ -306,10 +290,11 @@ class CloudRuntime:
             if not committed:
                 await self.delete_panels([key for key, _, _ in staged])
             logger.warning(
-                "generation_failed job=%s code=%s panels_staged=%d",
+                "generation_failed job=%s code=%s panels_staged=%d exception_type=%s",
                 job_id,
                 code,
                 len(staged),
+                type(error).__name__,
             )
 
     async def dispatch_and_recover(self):
@@ -324,16 +309,12 @@ class CloudRuntime:
                             (Job.status == "queued")
                             & (
                                 Job.created_at
-                                < now
-                                - timedelta(seconds=self.config.queue_timeout_seconds)
+                                < now - timedelta(seconds=self.config.queue_timeout_seconds)
                             ),
                             (Job.status == "processing")
                             & (
                                 Job.started_at
-                                < now
-                                - timedelta(
-                                    seconds=self.config.job_timeout_seconds + 45
-                                )
+                                < now - timedelta(seconds=self.config.job_timeout_seconds + 45)
                             ),
                         )
                     )
@@ -352,8 +333,7 @@ class CloudRuntime:
                         or (
                             job.status == "processing"
                             and job.started_at
-                            < now
-                            - timedelta(seconds=self.config.job_timeout_seconds + 45)
+                            < now - timedelta(seconds=self.config.job_timeout_seconds + 45)
                         )
                     )
                     if expired:

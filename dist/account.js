@@ -122,6 +122,7 @@ let materialPage = 1,
   tokenPage = 1;
 let filters = { search: '', subject: '', kind: '', order: 'desc' };
 const kinds = ['lesson', 'comic', 'quiz', 'flashcards', 'image'];
+const tokenBalance = (tokens) => tokens.unlimited ? '∞' : number(tokens.available);
 const option = (value, label, selected = false) =>
   `<option value="${e(value)}"${selected ? ' selected' : ''}>${e(label)}</option>`;
 const button = (label, href, secondary = false) =>
@@ -169,9 +170,9 @@ function loadAssets() {
   }
 }
 function topbar() {
-  document.querySelector('#top-plan').textContent = dashboard.plan.name[lang()];
+  document.querySelector('#top-plan').textContent = dashboard.tokens.unlimited ? t('administrator') : dashboard.plan.name[lang()];
   document.querySelector('#top-balance').textContent =
-    `${number(dashboard.tokens.available)} ${t('tokensUnit')}`;
+    `${tokenBalance(dashboard.tokens)} ${t('tokensUnit')}`;
   document.querySelector('#avatar').textContent = (dashboard.profile.display_name || 'S')
     .slice(0, 2)
     .toUpperCase();
@@ -222,7 +223,7 @@ async function render({ reuseDashboard = false, background = false } = {}) {
           t('hello', { name: dashboard.profile.display_name || t('teacher') }),
           t('dashboardIntro')
         ) +
-        `<div class="p-stats"><div><span>${e(t('availableTokens'))}</span><strong>${number(dashboard.tokens.available)}</strong><small>${e(t('reservedTokens'))}: ${number(dashboard.tokens.reserved)}</small></div><div><span>${e(t('currentPlan'))}</span><strong>${e(dashboard.plan.name[lang()])}</strong><a href="#plan">${e(t('myPlan'))} ↗</a></div><div><span>${e(t('materialCount'))}</span><strong>${number(dashboard.material_count)}</strong></div></div>
+        `<div class="p-stats"><div><span>${e(t('availableTokens'))}</span><strong>${tokenBalance(dashboard.tokens)}</strong><small>${e(t('reservedTokens'))}: ${number(dashboard.tokens.reserved)}</small></div><div><span>${e(t('currentPlan'))}</span><strong>${e(dashboard.plan.name[lang()])}</strong><a href="#plan">${e(t('myPlan'))} ↗</a></div><div><span>${e(t('materialCount'))}</span><strong>${number(dashboard.material_count)}</strong></div></div>
         <div class="p-quick-actions">${button(t('createLesson'), '#create?kind=lesson')}${button(t('createComic'), '#create?kind=comic', true)}${button(t('createQuiz'), '#create?kind=quiz', true)}</div>
         <div class="p-section-title"><h2>${e(t('recentMaterials'))}</h2><a href="#materials">${e(t('viewAll'))} ↗</a></div>` +
         (dashboard.recent_materials.length ? cards(dashboard.recent_materials) : empty());
@@ -246,8 +247,8 @@ async function render({ reuseDashboard = false, background = false } = {}) {
       dashboard.tokens = data.tokens;
       topbar();
       html =
-        title(t('tokenHistory'), t('tokensExplanation')) +
-        `<div class="p-balance">${e(t('availableTokens'))}: <strong>${number(dashboard.tokens.available)}</strong> · ${e(t('reservedTokens'))}: ${number(dashboard.tokens.reserved)}</div>` +
+        title(t('tokenHistory'), t(dashboard.tokens.unlimited ? 'adminTokens' : 'tokensExplanation')) +
+        `<div class="p-balance">${e(t('availableTokens'))}: <strong>${tokenBalance(dashboard.tokens)}</strong> · ${e(t('reservedTokens'))}: ${number(dashboard.tokens.reserved)}</div>` +
         (data.items.length
           ? `<div class="p-table-wrap"><table><thead><tr><th>${e(t('dateLabel'))}</th><th>${e(t('operation'))}</th><th>${e(t('amount'))}</th></tr></thead><tbody>${data.items.map((row) => `<tr><td>${e(date(row.created_at))}</td><td>${e(t(row.kind))}</td><td>${number(row.amount)}</td></tr>`).join('')}</tbody></table></div>`
           : `<p>${e(t('noTransactions'))}</p>`) +
@@ -324,7 +325,7 @@ function generator(state) {
   <label class="p-checkbox"><input type="checkbox" name="include_images" id="include_images">${e(t('includeImages'))}</label>
   <div id="image-options" class="p-form-grid" hidden>${input('image_count', 'imageCount', '1', 'type="number" min="1" max="8"')}${select('style', 'imageStyle', ['educational', 'cartoon', 'infographic', 'historical', 'scientific'].map((s) => option(s, t(s))).join(''))}${select('aspect_ratio', 'aspectRatio', ['1:1', '4:3', '3:4'].map((s) => option(s, s)).join(''))}</div>
   <p id="quote-notice" class="p-notice" role="status">${e(t('quoteHint'))}</p><div class="p-actions"><button id="get-quote" type="button" class="p-button">${e(t('getQuote'))}</button><button id="generate-submit" type="submit" class="p-button primary" disabled>${e(t('generate'))}</button></div></form>
-  <aside class="generation-note"><span aria-hidden="true">✦</span><h2>${e(t('modelStatus'))}</h2><p>${e(t('textModel'))}<strong>${state ? e(t(state.text.status)) : '—'}</strong></p><p>${e(t('imageModel'))}<strong>${state ? e(t(state.image.status)) : '—'}</strong></p><hr>${cloudComics ? `<p>${e(t('comicImageReview'))}</p><p><a href="/examples/seed-root/" target="_blank" rel="noopener">${e(t('comicPilotExample'))} ↗</a></p>` : ''}<p>${e(t('generatedReview'))}</p><p>${e(t('developmentPlans'))}</p></aside></div>`
+  <aside class="generation-note"><span aria-hidden="true">✦</span><h2>${e(t('modelStatus'))}</h2><p>${e(t('textModel'))}<strong>${state ? e(t(state.text.status)) : '—'}</strong></p><p>${e(t('imageModel'))}<strong>${state ? e(t(state.image.status)) : '—'}</strong></p><hr>${cloudComics ? `<p>${e(t('comicPageFormat'))}</p><p>${e(t('comicImageReview'))}</p><p><a href="/examples/seed-root/" target="_blank" rel="noopener">${e(t('comicPilotExample'))} ↗</a></p>` : ''}<p>${e(t('generatedReview'))}</p><p>${e(t('developmentPlans'))}</p></aside></div>`
   );
 }
 function wireGeneration() {
@@ -375,8 +376,8 @@ function wireGeneration() {
         });
         if (JSON.stringify(request) !== JSON.stringify(payload())) return;
         quoted = { request, cost: result.cost };
-        submit.textContent = t('startGeneration', { cost: result.cost });
-        notice(quoteNotice, t('startGeneration', { cost: result.cost }));
+        submit.textContent = dashboard.tokens.unlimited ? t('adminGeneration') : t('startGeneration', { cost: result.cost });
+        notice(quoteNotice, dashboard.tokens.unlimited ? t('adminGeneration') : t('startGeneration', { cost: result.cost }));
       } catch (error) {
         notice(quoteNotice, errorText(error), true);
       }
@@ -427,7 +428,10 @@ function materialHTML(material) {
     ) +
     section('examples', c.examples?.map((x) => `<p class="preserve-lines">${e(x)}</p>`).join(''));
   if (c.panels?.length) {
-    const byPanel = new Map(material.assets.map((asset) => [asset.index, asset]));
+    const page = material.assets.find((asset) => asset.layout === 'comic_page');
+    const byPanel = new Map(material.assets.filter((asset) => asset.layout !== 'comic_page').map((asset) => [asset.index, asset]));
+    if (page)
+      body += `<figure class="comic-page"><img data-asset="${e(page.url)}" alt="${e(material.title)}" width="512" height="512" decoding="async"><figcaption>${e(t('comicPageOrder'))}</figcaption></figure>`;
     body += `<div class="comic-panels">${c.panels
       .map((panel, index) => {
         const asset = byPanel.get(index);

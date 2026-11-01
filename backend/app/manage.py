@@ -49,12 +49,14 @@ def main():
         description="SANA administrator commands (no public admin API)"
     )
     parser.add_argument(
-        "command", choices=["seed-plans", "assign-plan", "grant", "reconcile", "prepare-model"]
+        "command",
+        choices=["seed-plans", "assign-plan", "set-admin", "grant", "reconcile", "prepare-model"],
     )
     parser.add_argument("--supabase-id", type=uuid.UUID)
     parser.add_argument("--plan", choices=["basic", "pro", "plus"])
     parser.add_argument("--amount", type=int)
     parser.add_argument("--operation-id", type=uuid.UUID)
+    parser.add_argument("--admin", choices=["true", "false"])
     args = parser.parse_args()
     if args.command == "prepare-model":
         from huggingface_hub import snapshot_download
@@ -93,7 +95,12 @@ def main():
         if not profile:
             parser.error("Profile not found; sign in once first")
         account = lock_account(db, profile.id)
-        if args.command == "assign-plan":
+        if args.command == "set-admin":
+            if args.admin is None:
+                parser.error("--admin true or --admin false is required")
+            profile.is_admin = args.admin == "true"
+            print("Administrator testing access updated. Balances and pending charges unchanged.")
+        elif args.command == "assign-plan":
             if not args.plan or not db.get(Plan, args.plan):
                 parser.error("A seeded --plan is required")
             if account.available + account.reserved > db.get(Plan, args.plan).limits["max_tokens"]:

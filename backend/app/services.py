@@ -89,6 +89,13 @@ def quote(db: Session, profile_id: uuid.UUID, request: GenerationInput, settings
         or count > min(permitted_images, settings.image_max_count)
     ):
         raise AppError("plan_limit", 422)
+    # Permissions/shape limits still apply to admins. Snapshot the actual charge on
+    # the job so granting/revoking admin cannot change a pending reservation.
+    if db.get(Profile, profile_id).is_admin:
+        return 0
+    # A cloud comic is one page, regardless of the number of story panels.
+    if count and settings.runtime == "cloudflare" and request.kind == "comic":
+        count = 1
     # Length and image pixels affect the quote; identical formula is used at reservation time.
     scale = max(1, (request.length + 3) // 4)
     image_scale = max(1, (settings.image_size * settings.image_size + 512 * 512 - 1) // (512 * 512))
