@@ -1,5 +1,6 @@
 import { createClient } from './vendor/supabase.js';
 import { ReadCache, forConsumer } from './read-cache.js';
+import { AssetCache } from './asset-cache.js';
 let connection;
 let storage;
 try {
@@ -12,6 +13,11 @@ const reads = new ReadCache({
   onUpdate: (detail) => window.dispatchEvent(new CustomEvent('sana:read', { detail })),
   onError: (detail) => window.dispatchEvent(new CustomEvent('sana:read-error', { detail })),
 });
+const images = new AssetCache();
+function identify(owner) {
+  reads.identify(owner);
+  images.identify(owner);
+}
 export const peekRead = (path) => reads.peek(path);
 export function clearReads(prefixes) {
   reads.clear(prefixes);
@@ -46,8 +52,8 @@ export function connect() {
       },
     });
     client.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') reads.identify(null);
-      else if (session?.user.id) reads.identify(session.user.id);
+      if (event === 'SIGNED_OUT') identify(null);
+      else if (session?.user.id) identify(session.user.id);
     });
     return { client, config };
   })();
@@ -61,15 +67,30 @@ export async function api(path, options = {}, retry = true) {
   } = client ? await client.auth.getSession() : { data: { session: null } };
   options.signal?.throwIfAborted();
   if (!session) {
-    reads.identify(null);
+    identify(null);
     throw new APIError('authentication_required', 401);
   }
-  reads.identify(session.user.id);
-  const { cacheFor = 0, force = false, waitForFresh = false, ...fetchOptions } = options;
+  identify(session.user.id);
+  const {
+    cacheFor = 0,
+    force = false,
+    waitForFresh = false,
+    uncachedBlob = false,
+    imagePriority = 0,
+    ...fetchOptions
+  } = options;
   const isRead = !options.method || options.method === 'GET';
   // Quotes calculate a price without changing any account data.
   const changesData = !isRead && path !== '/generations/quote';
   if (changesData) clearReads();
+  if (changesData && options.method === 'DELETE') images.clear();
+  if (isRead && options.blob && !uncachedBlob) {
+    const { signal, ...sharedOptions } = fetchOptions;
+    return forConsumer(
+      images.read(path, () => api(path, { ...sharedOptions, uncachedBlob: true }, retry), imagePriority),
+      signal
+    );
+  }
   if (isRead && cacheFor && !options.blob) {
     const { signal, ...sharedOptions } = fetchOptions;
     return forConsumer(
@@ -105,7 +126,7 @@ export async function api(path, options = {}, retry = true) {
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     if (response.status === 401) {
-      reads.identify(null);
+      identify(null);
       window.dispatchEvent(new Event('sana:expired'));
     }
     throw new APIError(body.error?.code || 'internal_error', response.status);

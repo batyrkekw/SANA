@@ -32,7 +32,11 @@ content.addEventListener('input', (event) => {
   if (event.target.form) dirtyForms.add(event.target.form);
 });
 const freshness = (path) =>
-  path === '/plans' ? 300000 : path.startsWith('/generations') ? 4000 : 15000;
+  path === '/plans' || path.startsWith('/materials/')
+    ? 300000
+    : path.startsWith('/generations')
+      ? 4000
+      : 15000;
 const cachedRead = (path, options = {}) => api(path, { cacheFor: freshness(path), ...options });
 const materialsPath = () => `/materials?${new URLSearchParams({ ...filters, page: materialPage })}`;
 function pathFor(view) {
@@ -65,12 +69,12 @@ async function prefetch() {
   try {
     const paths = [
       materialsPath(),
+      ...dashboard.recent_materials.slice(0, 3).map((item) => `/materials/${item.id}`),
       '/ai/status',
       `/generations?page=${jobPage}`,
       `/me/tokens/transactions?page=${tokenPage}`,
       '/plans',
       '/dashboard',
-      ...dashboard.recent_materials.slice(0, 3).map((item) => `/materials/${item.id}`),
     ];
     for (const path of paths) {
       if (document.hidden) break;
@@ -133,19 +137,35 @@ const select = (name, label, options) =>
 const pagination = (result, action) =>
   `<div class="p-pagination"><button class="p-button" data-page="${result.page - 1}" data-list="${action}" ${result.page === 1 ? 'disabled' : ''}>${e(t('previousListPage'))}</button><span>${e(t('pageInfo', { page: result.page, total: result.total }))}</span><button class="p-button" data-page="${result.page + 1}" data-list="${action}" ${result.page * result.page_size >= result.total ? 'disabled' : ''}>${e(t('nextListPage'))}</button></div>`;
 function cards(items) {
-  return `<div class="material-grid">${items.map((item) => `<article class="material-card"><div class="material-cover" data-kind="${e(item.kind)}">${item.assets?.length ? `<img data-asset="${e(item.assets[0].url)}" alt="${e(item.title)}">` : `<span aria-hidden="true">${{ lesson: '✦', comic: '▧', quiz: '?', flashcards: '▤', image: '◇' }[item.kind] || '✦'}</span>`}</div><div class="material-copy"><p class="p-eyebrow">${e(t(item.kind))} · ${e(item.language.toUpperCase())}</p><h3><a href="#material/${item.id}">${e(item.title)}</a></h3><p>${e(item.subject)} · ${e(item.topic)}</p><small>${e(date(item.created_at))}</small></div></article>`).join('')}</div>`;
+  return `<div class="material-grid">${items
+    .map((item) => {
+      const cover = item.assets?.find((asset) => asset.index === 0) || item.assets?.[0];
+      return `<article class="material-card"><a class="material-link" href="#material/${e(item.id)}" aria-label="${e(item.title)}"><div class="material-cover" data-kind="${e(item.kind)}"><span aria-hidden="true">${{ lesson: '✦', comic: '▧', quiz: '?', flashcards: '▤', image: '◇' }[item.kind] || '✦'}</span>${cover ? `<img data-asset="${e(cover.url)}" alt="" decoding="async" width="512" height="512">` : ''}</div><div class="material-copy"><p class="p-eyebrow">${e(t(item.kind))} · ${e(item.language.toUpperCase())}</p><h3>${e(item.title)}</h3><p>${e(item.subject)} · ${e(item.topic)}</p><small>${e(date(item.created_at))}</small><span class="material-open">${e(t('openMaterial'))} <span aria-hidden="true">↗</span></span></div></a></article>`;
+    })
+    .join('')}</div>`;
 }
-async function loadAssets(version, signal) {
-  for (const image of content.querySelectorAll('[data-asset]')) {
-    try {
-      const blob = await api(image.dataset.asset.replace('/api/v1', ''), { blob: true, signal });
-      if (version !== routeVersion) return;
-      const url = URL.createObjectURL(blob);
-      assets.push(url);
-      image.src = url;
-    } catch {
-      image.remove();
-    }
+function loadAssets() {
+  // Image requests belong to the account, not to a render's abort controller.
+  // A background JSON refresh must not cancel a still-visible cover.
+  for (const image of content.querySelectorAll('[data-asset]:not([data-loading]):not([src])')) {
+    image.dataset.loading = 'true';
+    void (async () => {
+      try {
+        const blob = await api(image.dataset.asset.replace('/api/v1', ''), {
+          blob: true,
+          imagePriority: routeVersion,
+        });
+        if (!image.isConnected) return;
+        const url = URL.createObjectURL(blob);
+        assets.push(url);
+        image.onload = () => image.classList.add('is-ready');
+        image.src = url;
+      } catch {
+        // Preserve the placeholder; online/focus/navigation can retry it.
+      } finally {
+        delete image.dataset.loading;
+      }
+    })();
   }
 }
 function topbar() {
@@ -253,9 +273,9 @@ async function render({ reuseDashboard = false, background = false } = {}) {
       assets.forEach(URL.revokeObjectURL);
       assets = [];
       content.innerHTML = html;
-      void loadAssets(version, controller.signal);
       if (view === 'create') wireGeneration();
     }
+    loadAssets();
     renderedKey = key;
     renderedHTML = html;
     scheduleJobPoll();
@@ -304,7 +324,7 @@ function generator(state) {
   <label class="p-checkbox"><input type="checkbox" name="include_images" id="include_images">${e(t('includeImages'))}</label>
   <div id="image-options" class="p-form-grid" hidden>${input('image_count', 'imageCount', '1', 'type="number" min="1" max="8"')}${select('style', 'imageStyle', ['educational', 'cartoon', 'infographic', 'historical', 'scientific'].map((s) => option(s, t(s))).join(''))}${select('aspect_ratio', 'aspectRatio', ['1:1', '4:3', '3:4'].map((s) => option(s, s)).join(''))}</div>
   <p id="quote-notice" class="p-notice" role="status">${e(t('quoteHint'))}</p><div class="p-actions"><button id="get-quote" type="button" class="p-button">${e(t('getQuote'))}</button><button id="generate-submit" type="submit" class="p-button primary" disabled>${e(t('generate'))}</button></div></form>
-  <aside class="generation-note"><span aria-hidden="true">✦</span><h2>${e(t('modelStatus'))}</h2><p>${e(t('textModel'))}<strong>${state ? e(t(state.text.status)) : '—'}</strong></p><p>${e(t('imageModel'))}<strong>${state ? e(t(state.image.status)) : '—'}</strong></p><hr>${cloudComics ? `<p>${e(t('comicImageReview'))}</p><p><a href="/examples/bean-comic/" target="_blank" rel="noopener">${e(t('comicPilotExample'))} ↗</a></p>` : ''}<p>${e(t('generatedReview'))}</p><p>${e(t('developmentPlans'))}</p></aside></div>`
+  <aside class="generation-note"><span aria-hidden="true">✦</span><h2>${e(t('modelStatus'))}</h2><p>${e(t('textModel'))}<strong>${state ? e(t(state.text.status)) : '—'}</strong></p><p>${e(t('imageModel'))}<strong>${state ? e(t(state.image.status)) : '—'}</strong></p><hr>${cloudComics ? `<p>${e(t('comicImageReview'))}</p><p><a href="/examples/seed-root/" target="_blank" rel="noopener">${e(t('comicPilotExample'))} ↗</a></p>` : ''}<p>${e(t('generatedReview'))}</p><p>${e(t('developmentPlans'))}</p></aside></div>`
   );
 }
 function wireGeneration() {
@@ -594,10 +614,12 @@ window.addEventListener('sana:read-error', ({ detail: { path, error } }) => {
 });
 window.addEventListener('sana:invalidate', schedulePrefetch);
 window.addEventListener('online', () => {
+  loadAssets();
   void refreshVisible();
   schedulePrefetch();
 });
 window.addEventListener('focus', () => {
+  loadAssets();
   void refreshVisible();
   schedulePrefetch();
 });
@@ -633,6 +655,8 @@ try {
   const session = client ? (await client.auth.getSession()).data.session : null;
   if (!session) location.replace('/auth.html#login');
   else {
+    // Deep links need not wait for the dashboard roundtrip before requesting the lesson.
+    if (route().startsWith('material/')) void cachedRead(pathFor(route())).catch(() => {});
     await refreshDashboard();
     setLanguage(dashboard.profile.language);
     topbar();

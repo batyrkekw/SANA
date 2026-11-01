@@ -569,3 +569,93 @@ test('comic reader uses panel indexes and keeps the dialogue outside the image',
   await expect(frames.nth(0).locator('blockquote')).toHaveText('Первый ответ');
   await expect(frames.nth(0).locator('img')).toHaveAttribute('src', /^blob:/);
 });
+
+test('comic cover survives background refresh; the whole card opens a cached illustrated lesson', async ({
+  page,
+}) => {
+  await setup(page, { signedIn: true });
+  const comic = {
+    ...material,
+    id: 'comic-cover',
+    title: 'Как растёт фасоль',
+    kind: 'comic',
+    assets: [
+      { index: 1, url: '/api/v1/assets/second' },
+      { index: 0, url: '/api/v1/assets/cover' },
+    ],
+    content: {
+      panels: [
+        { scene: 'Семя', dialogue: 'Начинаем!', narration: 'Вода' },
+        { scene: 'Корень', dialogue: 'Растём!', narration: 'Рост' },
+      ],
+    },
+  };
+  let dashboardReads = 0;
+  await page.route('**/api/v1/dashboard', (route) =>
+    route.fulfill({
+      json: {
+        profile: { id: profileId, display_name: 'Айдана', language: 'ru' },
+        plan,
+        tokens: { available: 94 - dashboardReads++, reserved: 0 },
+        material_count: 1,
+        recent_materials: [comic],
+      },
+    })
+  );
+  await page.route('**/api/v1/materials?*', (route) =>
+    route.fulfill({
+      json: {
+        items: [comic],
+        page: 1,
+        page_size: 12,
+        total: 1,
+        subjects: ['Биология'],
+      },
+    })
+  );
+  await page.route('**/api/v1/materials/comic-cover', (route) => route.fulfill({ json: comic }));
+  const calls = [];
+  let release;
+  const delayedImage = new Promise((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/api/v1/assets/*', async (route) => {
+    calls.push(route.request().url());
+    await delayedImage;
+    await route.fulfill({
+      path: 'dist/examples/bean-comic/panel-1.jpg',
+      contentType: 'image/jpeg',
+    });
+  });
+  await page.goto('/account.html#overview');
+  const cover = page.locator('.material-cover img');
+  await expect(cover).toHaveAttribute('data-asset', '/api/v1/assets/cover');
+  await expect.poll(() => calls.length).toBe(1);
+  await page.evaluate(async () => {
+    const { api } = await import('/session.js');
+    await api('/dashboard', { cacheFor: 15000, force: true });
+  });
+  release();
+  await expect(cover).toHaveClass('is-ready');
+  await expect(cover).toHaveJSProperty('naturalWidth', 512);
+  await page.screenshot({ path: '.tooling/screenshots/comic-cover-desktop.png', fullPage: true });
+  await page.locator('.material-cover').click();
+  await expect(page).toHaveURL(/#material\/comic-cover$/);
+  await expect(page.locator('.comic-frame img.is-ready')).toHaveCount(2);
+  const loaded = calls.length;
+  const before = Date.now();
+  await page.locator('.account-nav a[href="#materials"]').click();
+  await expect(cover).toHaveClass('is-ready');
+  await page.getByRole('link', { name: comic.title, exact: true }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.comic-frame img.is-ready')).toHaveCount(2);
+  expect(calls.length).toBe(loaded);
+  expect(Date.now() - before).toBeLessThan(1500);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+    .toBe(true);
+  await page.locator('.account-nav a[href="#materials"]').click();
+  await expect(cover).toHaveClass('is-ready');
+  await page.screenshot({ path: '.tooling/screenshots/comic-cover-mobile.png', fullPage: true });
+});

@@ -57,7 +57,7 @@ remaining reservation. Disposable test records were removed without changing use
 - Workers AI: `@cf/qwen/qwen3-30b-a3b-fp8`, not the local `sana-qwen3:4b` model.
 - Cloud inference has a deployment-wide cap of 20 new jobs per UTC day, in addition to
   user token balances. Failed jobs refund user tokens but still count toward the daily cap.
-- Illustrated comics use Workers AI FLUX.2 klein 4B and a private COMIC_ART KV namespace. Non-comic image generation remains local. The migration
+- Illustrated comics use Workers AI FLUX.2 dev and a private COMIC_ART KV namespace. Non-comic image generation remains local. The migration
   stops if local image assets exist instead of silently losing those files.
 - Quotas of the free Cloudflare/Supabase plans still apply. No paid plan is enabled by these
   scripts. The cap does not reserve the account's free AI allowance against other projects.
@@ -179,7 +179,7 @@ Supabase Auth IDs from internal profile IDs, matching production.
 The existing job reserves credit for the entire comic; four illustrated panels cost 52
 internal SANA tokens. Qwen first returns a validated script. FLUX receives one prompt per
 panel and the first finished picture as a reference for subsequent panels. Each square panel
-is requested at 512×512. KV stores image bytes; PostgreSQL stores only the owner, order,
+is requested at 512×512 with 20 steps and guidance 4. KV stores image bytes; PostgreSQL stores only the owner, order,
 MIME type, length and private key. Asset reads require the same authenticated owner as their
 material. Deleting a material removes the associated keys. Generation failures refund the
 whole reservation; staged files are cleaned up and duplicate deliveries do not regenerate.
@@ -188,13 +188,13 @@ A failed KV deletion logs its key for operator cleanup.
 Keep Workers Free and the existing 20-job daily cap. Up to four images per job plus a 128 MiB
 publication budget bound this pilot. Other Cloudflare usage shares the account allowance.
 See [Workers AI pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/)
-and [the FLUX input contract](https://developers.cloudflare.com/changelog/post/2026-01-15-flux-2-klein-4b-workers-ai/).
+and [the FLUX input contract](https://developers.cloudflare.com/changelog/post/2025-11-25-flux-2-dev-workers-ai/).
 For the existing deployment, enable the comic entitlement once with
 `backend/.venv/bin/python cloudflare/enable_comic_plans.py` (root directory). It updates
 only comic limits in plan definitions, never individual balances. Do not rerun the original
 data migration. Fresh local installs use the definitions in `config/plans.json`.
 
-The 1 November live pilot completed in about 33 seconds after queue pickup: four 512×512
+The original klein 4B live pilot on 1 November completed in about 33 seconds after queue pickup: four 512×512
 JPEGs, one 52-token charge and zero remaining reservation. A separate failed provider call
 returned the full reservation. One retry per job is allowed only for recognized transient
 image-service errors; quota and content-policy failures are not retried. The image phase
@@ -206,3 +206,32 @@ seed pod. The public technical sample at /examples/bean-comic/ explicitly annota
 mistakes. These images are not verified science diagrams. The creation form and reader
 retain review guidance. This limitation should be evaluated before promoting illustrated
 lessons more widely.
+
+## Reader and model update, 1 November 2026
+
+FLUX.2 dev replaces the 4B pilot model after a bounded comparison against klein 9B on an
+identical bean-root prompt. Both generated the main object correctly; dev was chosen for
+its detail and lower estimated cost at 512px/20 steps. Four images + three references cost
+approximately 4125 Neurons, before Qwen and retries. The 10,000/day free account allowance
+therefore supports roughly two illustrated comics, not the entire 20-job application cap.
+Keep the account on Workers Free; exceeding the allowance fails and refunds the job.
+
+Private images now use a per-account, per-tab memory cache (16 MiB, 48 images, two concurrent
+loads). Shared image requests survive route/background refreshes, cached covers are reused
+inside the reader, and sign-out/account changes reject late responses and clear the cache.
+Delete also invalidates image memory. No public asset URLs or shared HTTP caching are added.
+New reader images take priority over covers still queued by an old view.
+Material cards are full keyboard-accessible links and use panel zero as the cover. Recent
+lesson data is prefetched ahead of auxiliary sections and remains fresh for five minutes;
+mutations still invalidate it immediately. Deep links request lesson data while the dashboard loads.
+
+The first full dev run completed in 43.4 seconds but visual review still found an incorrect
+root: Qwen had returned CamelCase tags that passed the original language-only check. Art
+brief validation now requires at least eight English words, and a single repair requests
+ordinary sentences with explicit scale and physical connections. Regression tests cover
+both Cyrillic and CamelCase inputs. This is a prompt-quality guard, not scientific validation.
+
+The repaired two-panel cloud run completed in 34.5 seconds after 37.2 seconds in the outbox;
+metadata confirmed flux-2-dev, two images, one 32-token charge and zero reservation. Review
+still found two roots instead of one and a missing dish. /examples/seed-root/ preserves
+the original outputs with explicit notes; no claim of scientific correctness is made.

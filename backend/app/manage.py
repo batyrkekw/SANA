@@ -60,6 +60,8 @@ def main():
         from huggingface_hub import snapshot_download
 
         config = get_settings()
+        if not config.image_model_id:
+            parser.error("Set SANA_IMAGE_MODEL_ID for an optional local model first")
         variant = f".{config.image_variant}" if config.image_variant else ""
         snapshot_download(
             config.image_model_id,

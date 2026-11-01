@@ -26,8 +26,9 @@ class Settings(BaseSettings):
     jwt_audience: str = "authenticated"
     storage_dir: Path = ROOT / ".data/assets"
     model_cache_dir: Path = ROOT / ".data/models"
-    image_model_id: str = "stable-diffusion-v1-5/stable-diffusion-v1-5"
-    image_variant: str = "fp16"
+    # Optional local image adapter. Cloud images are configured in cloudflare/src/comic_art.py.
+    image_model_id: str = ""
+    image_variant: str = ""
     image_device: Literal["auto", "cpu", "mps", "cuda"] = "auto"
     image_enabled: bool = False
     image_steps: int = Field(20, ge=1, le=80)

@@ -7,14 +7,15 @@
 ```mermaid
 flowchart LR
   Browser[HTML / JavaScript / Tailwind] --> Auth[Supabase Auth]
-  Browser --> API[FastAPI: проверка JWT и владельца]
-  API --> DB[(PostgreSQL: профили, квоты, материалы, задания)]
-  API --> Queue[(Redis)]
-  Queue --> Worker[Celery: один процесс генерации]
-  Worker --> LLM[Локальная LLM / OpenAI-compatible API]
-  Worker --> Images[PyTorch + Diffusers]
+  Browser --> Pages[Cloudflare Pages]
+  Pages --> API[Python Worker / FastAPI]
+  API --> DB[(Supabase PostgreSQL через Hyperdrive)]
+  DB --> Queue[Outbox / Cloudflare Queues]
+  Queue --> Worker[Генерация в Python Worker]
+  Worker --> LLM[Workers AI: Qwen3-30B]
+  Worker --> Images[Workers AI: FLUX.2 dev]
   Worker --> DB
-  Worker --> Files[Приватные PNG вне Git]
+  Worker --> Files[Приватный Workers KV]
 ```
 
 - Node.js 22+, ESM JavaScript, Tailwind 4; Supabase JS собирается локально esbuild, без CDN.
@@ -32,8 +33,10 @@ Supabase PostgreSQL, Hyperdrive и Queues. Сайт опубликован на
 
 В облаке текст создаёт Qwen3-30B через Workers AI. Установлен общий лимит 20 новых генераций
 в сутки по UTC; действуют также квоты бесплатных сервисов и токены пользователей.
-В облаке FLUX.2 [klein] 4B рисует для комикса 1–4 кадра 512×512. Первый кадр служит референсом для остальных. Кадры лежат в приватном Workers KV, а их порядок и владелец — в PostgreSQL. Отдельные картинки и иллюстрации к обычному уроку в облачной версии отключены. Локальные Ollama и Diffusers продолжают работать
-в прежнем режиме. Пароль базы, SMTP-пароль и OAuth-токен Cloudflare в Git не сохраняются.
+В облаке FLUX.2 dev рисует для комикса 1–4 кадра 512×512. Первый кадр служит референсом для остальных. Кадры лежат в приватном Workers KV, а их порядок и владелец — в PostgreSQL. Отдельные картинки и иллюстрации к обычному уроку в облачной версии отключены. Локальная генерация изображений по умолчанию отключена; она не нужна публичному сайту.
+Четыре кадра расходуют около 4125 Neurons плюс текст и возможный повтор: бесплатной квоты
+обычно хватает примерно на два таких комикса в сутки на весь аккаунт, если нет другой нагрузки.
+[Выбор модели, ограничения и план работы с мемами](docs/AI.md). Пароль базы, SMTP-пароль и OAuth-токен Cloudflare в Git не сохраняются.
 
 ## Быстрый запуск на этом Mac
 

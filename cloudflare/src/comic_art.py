@@ -9,7 +9,10 @@ import re
 
 from app.errors import AppError
 
-MODEL = "@cf/black-forest-labs/flux-2-klein-4b"
+MODEL = "@cf/black-forest-labs/flux-2-dev"
+# Server-controlled quality/budget: 512px output and 20 denoising steps.
+IMAGE_SIZE = 512
+IMAGE_STEPS = 20
 logger = logging.getLogger("sana.art")
 MAX_PANEL_BYTES = 1024 * 1024
 
@@ -55,9 +58,7 @@ def provider_error(exc):
 
 
 def unpack_image(encoded):
-    if not isinstance(encoded, str) or not 0 < len(encoded) <= 4 * (
-        (MAX_PANEL_BYTES + 2) // 3
-    ):
+    if not isinstance(encoded, str) or not 0 < len(encoded) <= 4 * ((MAX_PANEL_BYTES + 2) // 3):
         raise AppError("image_inference_failed", 502)
     try:
         data = base64.b64decode(encoded, validate=True)
@@ -74,7 +75,7 @@ def unpack_image(encoded):
 
 
 async def visual_briefs(ai, model, content):
-    """If the script ignored the English art field, repair only those briefs once."""
+    """Repair unusable art briefs once, including English-looking CamelCase tags."""
     prompts = [p["image_prompt"] for p in content["panels"]]
 
     def valid(items):
@@ -84,7 +85,7 @@ async def visual_briefs(ai, model, content):
             and all(
                 isinstance(p, str)
                 and 0 < len(p) <= 2500
-                and re.search("[A-Za-z]", p)
+                and len(re.findall(r"\b[A-Za-z][A-Za-z'-]*\b", p)) >= 8
                 and not re.search("[Ѐ-ԯ]", p)
                 for p in items
             )
@@ -99,14 +100,17 @@ async def visual_briefs(ai, model, content):
                 "messages": [
                     {
                         "role": "system",
-                        "content": "Rewrite the supplied comic panels as standalone English image prompts. Preserve their order. First describe what must visibly change in the educational subject, its scale and setting; then the recurring character. Never omit the subject, never ask for lettering. Return JSON with a single prompts array of short English strings.",
+                        "content": "Rewrite the supplied comic panels as standalone English image prompts. Preserve their order and educational meaning. Use normal English sentences WITH SPACES, 40-100 words per prompt, never CamelCase tags. Name the central physical object, its small or large scale, its exact current state and the parts that must remain visibly connected. For a process, preserve the starting object instead of replacing it with a standalone organ or a later-stage object. Lead with that subject, then the stable surroundings; observers are secondary. Describe one clear drawable scene, not an abstract concept. Never ask for lettering. Return JSON with a single prompts array of English strings.",
                     },
                     {
                         "role": "user",
-                        "content": json.dumps(content["panels"], ensure_ascii=False),
+                        "content": json.dumps(
+                            {key: content.get(key) for key in ("title", "objectives", "panels")},
+                            ensure_ascii=False,
+                        ),
                     },
                 ],
-                "max_tokens": 1200,
+                "max_tokens": 2000,
                 "temperature": 0.2,
                 "response_format": {"type": "json_object"},
             },
@@ -128,7 +132,15 @@ async def render_panel(ai, scene, style, reference):
     prompt = f"{scene[:1400]} Single {style} educational comic panel. Show the specific subject and its state clearly in one coherent scene. No lettering or speech balloons."
     if reference:
         prompt += " Use image 0 ONLY as a reference for character identity and drawing style. Recompose the panel to show the requested change. The essential object must be visibly present in its surroundings."
-    form = FormData({"prompt": prompt, "width": "512", "height": "512"})
+    form = FormData(
+        {
+            "prompt": prompt,
+            "width": str(IMAGE_SIZE),
+            "height": str(IMAGE_SIZE),
+            "steps": str(IMAGE_STEPS),
+            "guidance": "4",
+        }
+    )
     if reference:
         data, mime = reference
         form.append("input_image_0", Blob([data], content_type=mime), "first-panel")

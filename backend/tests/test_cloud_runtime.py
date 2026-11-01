@@ -6,6 +6,7 @@ from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
 from sqlalchemy import func, select
 
 from app.models import Job, Material, TokenAccount, TokenTransaction, utcnow
@@ -239,7 +240,7 @@ def test_illustrated_comic_pipeline(factory, owner, config, monkeypatch):
                 "scene": "Опыт",
                 "narration": "Проверяем лампу.",
                 "dialogue": "Смотри!",
-                "image_prompt": f"Scene {i}",
+                "image_prompt": f"A lamp lights up a white wall in scene {i}",
             }
             for i in range(4)
         ],
@@ -289,13 +290,13 @@ def test_illustrated_comic_pipeline(factory, owner, config, monkeypatch):
     fail = False
     refs.clear()
     done = run("complete-pilot")
-    assert refs == [None, None] + [(b"Scene 0", "image/jpeg")] * 3
+    assert refs == [None, None] + [(b"A lamp lights up a white wall in scene 0", "image/jpeg")] * 3
     with factory() as db:
         material = db.scalar(select(Material).where(Material.job_id == done))
         assets = sorted(db.scalars(select(Asset)).all(), key=lambda a: a.metadata_json["index"])
         assert material.owner_id == owner.id and len(assets) == len(storage) == 4
         assert [storage[a.storage_key][0] for a in assets] == [
-            f"Scene {i}".encode() for i in range(4)
+            f"A lamp lights up a white wall in scene {i}".encode() for i in range(4)
         ]
         assert all(a.material_id == material.id and a.owner_id == owner.id for a in assets)
         account = db.get(TokenAccount, owner.id)
@@ -361,23 +362,30 @@ def test_cloud_assets_obey_ownership_and_deletion(client, factory, monkeypatch, 
     assert calls == [("read", "private/key"), ("delete", ["private/key"])]
 
 
-def test_art_briefs_repair_once_and_keep_dialogue():
+@pytest.mark.parametrize("brief", ["Белый корешок", "WhiteRootGrowingFromBeanSeedInPetriDish"])
+def test_art_briefs_repair_once_and_keep_dialogue(brief):
     import pytest
     from comic_art import visual_briefs
 
     from app.errors import AppError
 
-    script = {"panels": [{"image_prompt": "Белый корешок", "dialogue": "Вижу корешок!"}]}
+    script = {"panels": [{"image_prompt": brief, "dialogue": "Вижу корешок!"}]}
     calls = []
 
     async def run(_, payload):
         calls.append(payload)
         return {
-            "choices": [{"message": {"content": '{"prompts":["A white root grows from a bean"]}'}}]
+            "choices": [
+                {
+                    "message": {
+                        "content": '{"prompts":["A white root grows from a bean on damp paper"]}'
+                    }
+                }
+            ]
         }
 
     assert asyncio.run(visual_briefs(SimpleNamespace(run=run), "qwen", script)) == [
-        "A white root grows from a bean"
+        "A white root grows from a bean on damp paper"
     ]
     assert len(calls) == 1 and script["panels"][0]["dialogue"] == "Вижу корешок!"
 

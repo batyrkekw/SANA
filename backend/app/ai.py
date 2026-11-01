@@ -110,6 +110,8 @@ class LocalDiffusersProvider:
     def health_check(self) -> dict:
         if not self.settings.image_enabled:
             return {**self.get_model_info(), "status": "disabled"}
+        if not self.settings.image_model_id:
+            return {**self.get_model_info(), "status": "not_configured"}
         if not all(importlib.util.find_spec(name) for name in ("torch", "diffusers")):
             return {**self.get_model_info(), "status": "dependencies_missing"}
         try:
@@ -131,6 +133,8 @@ class LocalDiffusersProvider:
         if not self.settings.image_enabled:
             raise AppError("image_model_not_enabled", 503)
         status = self.health_check()["status"]
+        if status == "not_configured":
+            raise AppError("image_model_not_enabled", 503)
         if status in ("dependencies_missing", "weights_missing"):
             raise AppError(status, 503)
         try:

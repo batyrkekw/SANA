@@ -23,7 +23,7 @@ def generation_payload(request: GenerationInput, settings: Settings) -> dict:
     if request.kind == "comic" and request.include_images:
         prompt_field = schema["$defs"]["Panel"]["properties"]["image_prompt"]
         prompt_field.update(
-            description="English visual brief. Lead with the observable scientific subject, its present state and surroundings. Characters are secondary. No lettering.",
+            description="40-100 words in normal English sentences with spaces, never CamelCase. Lead with the observable subject, its present state, scale, connected parts and surroundings. Characters are secondary. No lettering.",
             pattern=r"^[^Ѐ-ԯ]+$",
         )
     allowed = ["title", "language", "kind", *required]
@@ -61,6 +61,10 @@ def generation_payload(request: GenerationInput, settings: Settings) -> dict:
             " Each English image_prompt must describe one drawable physical action, with the "
             "same distinctive character and setting across the story. Keep scene titles short. "
             "Write one short natural spoken line per panel; no speaker labels or stage directions. "
+            "Build a short story: a question or misconception, an observable discovery, then a "
+            "clear educational payoff. Gentle situational humor is welcome but must never "
+            "contradict the lesson. Repeat essential physical connections, counts and relative "
+            "sizes in each visual brief; do not rely on captions to explain a wrong drawing. "
             "Never translate image_prompt into Russian or Kazakh. Lead each English prompt with the physical object, visible change, scale, and stable setting. Describe what the viewer must see, not just the observer. Do not draw text or labels."
         )
     if request.language == "kk":

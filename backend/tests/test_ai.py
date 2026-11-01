@@ -40,6 +40,7 @@ def test_storage_rejects_arbitrary_paths(tmp_path):
 
 
 def test_missing_image_dependencies_reported_without_download(config, monkeypatch):
+    config.image_model_id = "test-image-model"
     monkeypatch.setattr("app.ai.importlib.util.find_spec", lambda _: None)
     provider = LocalDiffusersProvider(config)
     assert provider.health_check()["status"] == "dependencies_missing"
@@ -47,6 +48,14 @@ def test_missing_image_dependencies_reported_without_download(config, monkeypatc
         provider.load_model()
     with pytest.raises(AppError, match="invalid_image_prompt"):
         provider.generate_image("x" * 6001, "educational", "1:1", 100)
+
+
+def test_local_images_require_an_explicit_model(config):
+    config.image_model_id = ""
+    provider = LocalDiffusersProvider(config)
+    assert provider.health_check()["status"] == "not_configured"
+    with pytest.raises(AppError, match="image_model_not_enabled"):
+        provider.load_model()
 
 
 def test_local_llm_adapter_validates_real_http_shape(config, quiz, monkeypatch):
