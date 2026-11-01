@@ -52,12 +52,12 @@ remaining reservation. Disposable test records were removed without changing use
   dependent lists/balances when their status changes. Forms keep unsaved input during refresh.
   Cold routes use neutral skeletons; cached routes and job polls never replace data with a
   loading message. Background network failures leave data visible with a saved-data notice.
-- Cloudflare Queues execute text generation. A one-minute Cron drains the database outbox
+- Cloudflare Queues execute text and illustrated comic generation. A one-minute Cron drains the database outbox
   and refunds expired jobs. Duplicate delivery never creates a second charge/material.
 - Workers AI: `@cf/qwen/qwen3-30b-a3b-fp8`, not the local `sana-qwen3:4b` model.
 - Cloud inference has a deployment-wide cap of 20 new jobs per UTC day, in addition to
   user token balances. Failed jobs refund user tokens but still count toward the daily cap.
-- Image generation remains local; the cloud runtime disables it explicitly. The migration
+- Illustrated comics use Workers AI FLUX.2 klein 4B and a private COMIC_ART KV namespace. Non-comic image generation remains local. The migration
   stops if local image assets exist instead of silently losing those files.
 - Quotas of the free Cloudflare/Supabase plans still apply. No paid plan is enabled by these
   scripts. The cap does not reserve the account's free AI allowance against other projects.
@@ -151,7 +151,7 @@ configuration returned 200. A fresh authenticated cabinet reload and saved lesso
 A disposable cloud job completed through Cron → Queue → Workers AI → Supabase: three quiz
 questions, exactly one 6-token charge, zero remaining reservation. Test rows were removed
 and all previously running local services resumed. The Mac was not powered off; none of its
-application services could answer during this check. Cloud images remain disabled.
+application services could answer during this check. At the time of that check, cloud images were disabled.
 
 ## Email delivery
 
@@ -173,3 +173,36 @@ With the published cache and a real signed-in account, six prepared sections swi
 took 513 ms. Clicking a prefetched saved lesson took 70 ms. These are single-client observations, not a latency guarantee. Background
 API reads completed successfully in the Worker tail. The browser fixtures now distinguish
 Supabase Auth IDs from internal profile IDs, matching production.
+
+## Illustrated comic pilot
+
+The existing job reserves credit for the entire comic; four illustrated panels cost 52
+internal SANA tokens. Qwen first returns a validated script. FLUX receives one prompt per
+panel and the first finished picture as a reference for subsequent panels. Each square panel
+is requested at 512×512. KV stores image bytes; PostgreSQL stores only the owner, order,
+MIME type, length and private key. Asset reads require the same authenticated owner as their
+material. Deleting a material removes the associated keys. Generation failures refund the
+whole reservation; staged files are cleaned up and duplicate deliveries do not regenerate.
+A failed KV deletion logs its key for operator cleanup.
+
+Keep Workers Free and the existing 20-job daily cap. Up to four images per job plus a 128 MiB
+publication budget bound this pilot. Other Cloudflare usage shares the account allowance.
+See [Workers AI pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/)
+and [the FLUX input contract](https://developers.cloudflare.com/changelog/post/2026-01-15-flux-2-klein-4b-workers-ai/).
+For the existing deployment, enable the comic entitlement once with
+`backend/.venv/bin/python cloudflare/enable_comic_plans.py` (root directory). It updates
+only comic limits in plan definitions, never individual balances. Do not rerun the original
+data migration. Fresh local installs use the definitions in `config/plans.json`.
+
+The 1 November live pilot completed in about 33 seconds after queue pickup: four 512×512
+JPEGs, one 52-token charge and zero remaining reservation. A separate failed provider call
+returned the full reservation. One retry per job is allowed only for recognized transient
+image-service errors; quota and content-policy failures are not retried. The image phase
+has a five-minute overall deadline. Storage binary roundtrip also passed in the native
+Workers runtime; API ownership/delete checks use PostgreSQL test fixtures.
+
+Visual review found real errors: the root and shoot were rendered as a root vegetable and
+seed pod. The public technical sample at /examples/bean-comic/ explicitly annotates these
+mistakes. These images are not verified science diagrams. The creation form and reader
+retain review guidance. This limitation should be evaluated before promoting illustrated
+lessons more widely.

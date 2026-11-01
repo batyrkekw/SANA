@@ -78,6 +78,7 @@ async function setup(page, { signedIn = false, configured = true, reserved = 6 }
     if (path === '/config')
       data = {
         auth_configured: configured,
+        comic_pilot: true,
         supabase_url: 'https://sana-test.supabase.co',
         supabase_publishable_key: 'sb_publishable_test',
         google_oauth_enabled: false,
@@ -504,4 +505,67 @@ test('job completion refreshes materials and balances without a loading flash', 
   await expect(page.getByRole('link', { name: material.title, exact: true })).toBeVisible();
   await page.locator('.account-nav a[href="#overview"]').click();
   await expect(page.locator('.p-stats > div').first()).toContainText('Зарезервировано: 0');
+});
+
+test('cloud comic starts with four illustrated panels and quotes the displayed choices', async ({
+  page,
+}) => {
+  const requests = await setup(page, { signedIn: true });
+  await page.goto('/account.html#create?kind=comic');
+  await expect(page.locator('#length')).toHaveValue('4');
+  await expect(page.locator('#include_images')).toBeChecked();
+  await expect(page.locator('#image_count')).toBeHidden();
+  await page.locator('#subject').fill('Физика');
+  await page.locator('#topic').fill('Тень');
+  await page.locator('#get-quote').click();
+  await expect(page.locator('#generate-submit')).toBeEnabled();
+  expect(requests.find((r) => r.path === '/generations/quote').body).toMatchObject({
+    kind: 'comic',
+    length: 4,
+    include_images: true,
+    aspect_ratio: '1:1',
+  });
+  await page.locator('#kind').selectOption('lesson');
+  await expect(page.locator('#include_images')).not.toBeChecked();
+});
+
+test('comic reader uses panel indexes and keeps the dialogue outside the image', async ({
+  page,
+}) => {
+  await setup(page, { signedIn: true });
+  await page.route('**/api/v1/materials/comic-demo', (route) =>
+    route.fulfill({
+      json: {
+        ...material,
+        id: 'comic-demo',
+        kind: 'comic',
+        title: 'Комикс',
+        content: {
+          objectives: ['Проверка'],
+          panels: [
+            { scene: 'Первый кадр', dialogue: 'Первый ответ', narration: 'Текст' },
+            { scene: 'Второй кадр', dialogue: 'Второй ответ', narration: 'Текст' },
+          ],
+        },
+        assets: [
+          { index: 1, url: '/api/v1/assets/two' },
+          { index: 0, url: '/api/v1/assets/one' },
+        ],
+      },
+    })
+  );
+  const panelImage = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/iQAAAABJRU5ErkJggg==',
+    'base64'
+  );
+  await page.route('**/api/v1/assets/*', (route) =>
+    route.fulfill({ body: panelImage, contentType: 'image/png' })
+  );
+  await page.goto('/account.html#material/comic-demo');
+  const frames = page.locator('.comic-frame');
+  await expect(frames).toHaveCount(2);
+  await expect(frames.nth(0).locator('img')).toHaveAttribute('data-asset', '/api/v1/assets/one');
+  await expect(frames.nth(1).locator('img')).toHaveAttribute('data-asset', '/api/v1/assets/two');
+  await expect(frames.nth(0).locator('blockquote')).toHaveText('Первый ответ');
+  await expect(frames.nth(0).locator('img')).toHaveAttribute('src', /^blob:/);
 });

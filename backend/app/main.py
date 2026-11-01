@@ -10,7 +10,7 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, Header, Query
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import delete, func, select, text
 from sqlalchemy.exc import SQLAlchemyError
@@ -230,7 +230,7 @@ def material_data(db, material, detail=False, assets=None):
                 "url": f"/api/v1/assets/{asset.id}",
                 "index": asset.metadata_json.get("index", 0),
             }
-            for asset in assets
+            for asset in sorted(assets, key=lambda item: item.metadata_json.get("index", 0))
         ],
     }
     if detail:
@@ -312,6 +312,7 @@ def public_config():
         "supabase_url": config.supabase_url,
         "supabase_publishable_key": config.supabase_publishable_key,
         "google_oauth_enabled": config.google_oauth_enabled,
+        "comic_pilot": config.runtime == "cloudflare" and config.image_enabled,
         "api_base": "/api/v1",
     }
 
@@ -446,13 +447,16 @@ def rename_material(material_id: uuid.UUID, body: MaterialUpdate, user: User, db
 
 
 @app.delete("/api/v1/materials/{material_id}", status_code=204)
-def remove_material(material_id: uuid.UUID, user: User, db: DB):
+async def remove_material(material_id: uuid.UUID, user: User, db: DB):
     material = owned(db, Material, material_id, user.id)
     keys = db.scalars(select(Asset.storage_key).where(Asset.material_id == material.id)).all()
     db.execute(delete(Asset).where(Asset.material_id == material.id))
     db.delete(material)
     db.commit()
     if not keys:
+        return
+    if config.runtime == "cloudflare":
+        await app.state.cloud.delete_panels(keys)
         return
     from app.storage import LocalStorageProvider
 
@@ -464,12 +468,15 @@ def remove_material(material_id: uuid.UUID, user: User, db: DB):
 
 
 @app.get("/api/v1/assets/{asset_id}")
-def read_asset(asset_id: uuid.UUID, user: User, db: DB):
+async def read_asset(asset_id: uuid.UUID, user: User, db: DB):
+    asset = owned(db, Asset, asset_id, user.id)
     if config.runtime == "cloudflare":
-        raise AppError("image_model_not_enabled", 503)
+        data = await app.state.cloud.read_panel(asset.storage_key)
+        return Response(
+            data, media_type=asset.mime_type, headers={"Cache-Control": "private, no-store"}
+        )
     from app.storage import LocalStorageProvider
 
-    asset = owned(db, Asset, asset_id, user.id)
     path = LocalStorageProvider(config.storage_dir).resolve(asset.storage_key)
     if not path.is_file():
         raise AppError("not_found", 404)

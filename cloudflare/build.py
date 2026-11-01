@@ -57,6 +57,7 @@ shutil.copytree(
             "supabase_url": values["SANA_SUPABASE_URL"],
             "supabase_publishable_key": public_key,
             "google_oauth_enabled": False,
+            "comic_pilot": True,
             "api_base": "/api/v1",
         }
     )

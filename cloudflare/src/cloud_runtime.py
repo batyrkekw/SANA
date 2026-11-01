@@ -9,16 +9,24 @@ from time import perf_counter
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
-from sqlalchemy import URL, create_engine, or_, select, text
+from sqlalchemy import URL, create_engine, func, or_, select, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
 from app.config import get_settings
 from app.errors import AppError
-from app.models import Job, Material, utcnow
+from app.models import Asset, Job, Material, utcnow
 from app.prompts import generation_payload, parse_completion
 from app.schemas import GenerationInput
 from app.services import lock_account, settle
+
+from comic_art import (
+    MODEL,
+    TransientRenderError,
+    render_panel,
+    store_panel,
+    visual_briefs,
+)
 
 logger = logging.getLogger("sana.cloud")
 
@@ -124,23 +132,43 @@ class CloudRuntime:
                 factory = factory_for(self.env)
                 with factory() as db:
                     db.execute(text("SELECT version_num FROM sana.alembic_version"))
-            return JSONResponse({"database": True, "queue_configured": bool(self.env.JOBS)})
+            return JSONResponse(
+                {"database": True, "queue_configured": bool(self.env.JOBS)}
+            )
         except Exception:
             return JSONResponse({"database": False}, 503)
 
     def models(self):
         return {
             "text": {"id": self.config.llm_model, "provider": "cloudflare_workers_ai"},
-            "image": {"id": None, "provider": None},
+            "image": {"id": MODEL, "provider": "cloudflare_workers_ai"},
         }
 
     def ai_status(self):
         # Binding configured is not a promise of remaining daily inference quota.
         return {
             "text": {**self.models()["text"], "status": "configured"},
-            "image": {"status": "disabled"},
+            "image": {
+                **self.models()["image"],
+                "status": "configured",
+                "kinds": ["comic"],
+                "max_panels": 4,
+            },
             "checked_at": datetime.now(UTC),
         }
+
+    async def read_panel(self, key):
+        data = await self.env.COMIC_ART.get(key, "arrayBuffer")
+        if data is None:
+            raise AppError("not_found", 404)
+        return bytes(data)
+
+    async def delete_panels(self, keys):
+        for key in keys:
+            try:
+                await self.env.COMIC_ART.delete(key)
+            except Exception:
+                logger.warning("panel_cleanup_pending key=%s", key)
 
     async def generate(self, job_id):
         job_id, execution = uuid.UUID(job_id), uuid.uuid4()
@@ -152,9 +180,22 @@ class CloudRuntime:
                     return
                 request = GenerationInput.model_validate(job.request)
                 owner_id = job.owner_id
-                job.status, job.execution_id, job.started_at = "processing", execution, utcnow()
+                job.status, job.execution_id, job.started_at = (
+                    "processing",
+                    execution,
+                    utcnow(),
+                )
+        staged = []
         try:
-            if request.include_images or request.kind == "image":
+            if request.kind == "image" or (
+                request.include_images
+                and (
+                    request.kind != "comic"
+                    or not self.config.image_enabled
+                    or request.length > 4
+                    or request.aspect_ratio != "1:1"
+                )
+            ):
                 raise AppError("image_model_not_enabled", 503)
             payload = generation_payload(request, self.config)
             payload.pop("model", None)
@@ -165,37 +206,111 @@ class CloudRuntime:
             )
             try:
                 content = parse_completion(result, request, self.config)
-            except (ValueError, KeyError, IndexError, TypeError, AttributeError) as error:
+            except (
+                ValueError,
+                KeyError,
+                IndexError,
+                TypeError,
+                AttributeError,
+            ) as error:
                 raise AppError("invalid_model_output", 502) from error
+            reference = None
+            if request.include_images:
+                briefs = await visual_briefs(
+                    self.env.AI, self.config.llm_model, content
+                )
+                retried = False
+                async with asyncio.timeout(300):
+                    for index, prompt in enumerate(briefs):
+                        content["panels"][index]["image_prompt"] = prompt
+                        try:
+                            image = await render_panel(
+                                self.env.AI, prompt, request.style, reference
+                            )
+                        except TransientRenderError:
+                            if retried:
+                                raise
+                            retried = True
+                            await asyncio.sleep(1)
+                            image = await render_panel(
+                                self.env.AI, prompt, request.style, reference
+                            )
+                        if index == 0:
+                            reference = image
+                        key = f"comics/{owner_id}/{job_id}/{execution}/{index}"
+                        staged.append((key, image[1], len(image[0])))
+                        await store_panel(self.env.COMIC_ART, key, image)
             async with sql_lock:
                 with factory.begin() as db:
                     job = locked_job(db, job_id)
-                    if not job or job.status != "processing" or job.execution_id != execution:
-                        return
-                    db.add(
-                        Material(
-                            owner_id=owner_id,
-                            job_id=job.id,
-                            title=content["title"],
-                            subject=request.subject,
-                            topic=request.topic,
-                            language=request.language,
-                            kind=request.kind,
-                            content=content,
-                        )
+                    if (
+                        not job
+                        or job.status != "processing"
+                        or job.execution_id != execution
+                    ):
+                        raise AppError("generation_timeout", 409)
+                    if staged:
+                        # Shared storage budget, serialized across isolates. Keep room in the free tier.
+                        db.execute(select(func.pg_advisory_xact_lock(76155221)))
+                        used = db.scalar(select(func.coalesce(func.sum(Asset.size), 0)))
+                        if (
+                            used + sum(size for _, _, size in staged)
+                            > 128 * 1024 * 1024
+                        ):
+                            raise AppError("comic_storage_full", 503)
+                    material = Material(
+                        owner_id=owner_id,
+                        job_id=job.id,
+                        title=content["title"],
+                        subject=request.subject,
+                        topic=request.topic,
+                        language=request.language,
+                        kind=request.kind,
+                        content=content,
                     )
+                    db.add(material)
+                    db.flush()
+                    for index, (key, mime, size) in enumerate(staged):
+                        db.add(
+                            Asset(
+                                owner_id=owner_id,
+                                material_id=material.id,
+                                storage_key=key,
+                                mime_type=mime,
+                                size=size,
+                                metadata_json={"index": index, "model": MODEL},
+                            )
+                        )
                     settle(db, job, True)
                     job.status, job.finished_at = "completed", utcnow()
             logger.info("generation_completed job=%s", job_id)
         except Exception as error:
-            code = error.code if isinstance(error, AppError) else "text_model_unavailable"
+            code = (
+                error.code if isinstance(error, AppError) else "text_model_unavailable"
+            )
             async with sql_lock:
                 with factory.begin() as db:
                     job = locked_job(db, job_id)
-                    if job and job.status == "processing" and job.execution_id == execution:
+                    if (
+                        job
+                        and job.status == "processing"
+                        and job.execution_id == execution
+                    ):
                         settle(db, job, False)
-                        job.status, job.error_code, job.finished_at = "failed", code, utcnow()
-            logger.warning("generation_failed job=%s code=%s", job_id, code)
+                        job.status, job.error_code, job.finished_at = (
+                            "failed",
+                            code,
+                            utcnow(),
+                        )
+                    committed = job is not None and job.status == "completed"
+            if not committed:
+                await self.delete_panels([key for key, _, _ in staged])
+            logger.warning(
+                "generation_failed job=%s code=%s panels_staged=%d",
+                job_id,
+                code,
+                len(staged),
+            )
 
     async def dispatch_and_recover(self):
         now = utcnow()
@@ -209,17 +324,22 @@ class CloudRuntime:
                             (Job.status == "queued")
                             & (
                                 Job.created_at
-                                < now - timedelta(seconds=self.config.queue_timeout_seconds)
+                                < now
+                                - timedelta(seconds=self.config.queue_timeout_seconds)
                             ),
                             (Job.status == "processing")
                             & (
                                 Job.started_at
-                                < now - timedelta(seconds=self.config.job_timeout_seconds + 45)
+                                < now
+                                - timedelta(
+                                    seconds=self.config.job_timeout_seconds + 45
+                                )
                             ),
                         )
                     )
                     .limit(30)
                 ).all()
+            abandoned = []
             for job_id in ids:
                 with factory.begin() as db:
                     job = locked_job(db, job_id)
@@ -232,10 +352,16 @@ class CloudRuntime:
                         or (
                             job.status == "processing"
                             and job.started_at
-                            < now - timedelta(seconds=self.config.job_timeout_seconds + 45)
+                            < now
+                            - timedelta(seconds=self.config.job_timeout_seconds + 45)
                         )
                     )
                     if expired:
+                        if job.execution_id and job.request.get("include_images"):
+                            abandoned.extend(
+                                f"comics/{job.owner_id}/{job.id}/{job.execution_id}/{i}"
+                                for i in range(min(job.request.get("length", 4), 4))
+                            )
                         settle(db, job, False)
                         job.status, job.error_code, job.finished_at = (
                             "failed",
@@ -255,6 +381,7 @@ class CloudRuntime:
                     .order_by(Job.created_at)
                     .limit(10)
                 ).all()
+        await self.delete_panels(abandoned)
         for job_id in pending:
             await self.env.JOBS.send({"job_id": str(job_id)})
             async with sql_lock:

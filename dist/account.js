@@ -19,6 +19,7 @@ let dashboard,
   pollTimer,
   dialogAction;
 let assets = [];
+let cloudComics = false;
 let renderedKey,
   renderedHTML,
   rendering = false,
@@ -289,21 +290,29 @@ function generator(state) {
   return (
     title(t('generate'), t('generationIntro')) +
     `<div class="generation-layout"><form id="generation-form" class="p-form">
-  <div class="p-form-grid">${select('kind', 'materialType', kinds.map((kind) => option(kind, t(kind), kind === chosen)).join(''))}${select('language', 'outputLanguage', option('ru', 'Русский', lang() === 'ru') + option('kk', 'Қазақша', lang() === 'kk'))}
+  <div class="p-form-grid">${select(
+    'kind',
+    'materialType',
+    kinds
+      .filter((kind) => !cloudComics || kind !== 'image')
+      .map((kind) => option(kind, t(kind), kind === chosen))
+      .join('')
+  )}${select('language', 'outputLanguage', option('ru', 'Русский', lang() === 'ru') + option('kk', 'Қазақша', lang() === 'kk'))}
   ${input('subject', 'subjectInput', '', 'required maxlength="100"')}${input('topic', 'topicInput', '', 'required maxlength="200"')}
   ${input('grade', 'gradeInput', '8', 'type="number" min="1" max="12" required')}${input('length', 'lengthInput', '3', 'type="number" min="1" max="12" required')}</div>
   ${field('instructions', 'instructionsInput', '<textarea id="instructions" name="instructions" rows="4" maxlength="6000"></textarea>')}
   <label class="p-checkbox"><input type="checkbox" name="include_images" id="include_images">${e(t('includeImages'))}</label>
   <div id="image-options" class="p-form-grid" hidden>${input('image_count', 'imageCount', '1', 'type="number" min="1" max="8"')}${select('style', 'imageStyle', ['educational', 'cartoon', 'infographic', 'historical', 'scientific'].map((s) => option(s, t(s))).join(''))}${select('aspect_ratio', 'aspectRatio', ['1:1', '4:3', '3:4'].map((s) => option(s, s)).join(''))}</div>
   <p id="quote-notice" class="p-notice" role="status">${e(t('quoteHint'))}</p><div class="p-actions"><button id="get-quote" type="button" class="p-button">${e(t('getQuote'))}</button><button id="generate-submit" type="submit" class="p-button primary" disabled>${e(t('generate'))}</button></div></form>
-  <aside class="generation-note"><span aria-hidden="true">✦</span><h2>${e(t('modelStatus'))}</h2><p>${e(t('textModel'))}<strong>${state ? e(t(state.text.status)) : '—'}</strong></p><p>${e(t('imageModel'))}<strong>${state ? e(t(state.image.status)) : '—'}</strong></p><hr><p>${e(t('generatedReview'))}</p><p>${e(t('developmentPlans'))}</p></aside></div>`
+  <aside class="generation-note"><span aria-hidden="true">✦</span><h2>${e(t('modelStatus'))}</h2><p>${e(t('textModel'))}<strong>${state ? e(t(state.text.status)) : '—'}</strong></p><p>${e(t('imageModel'))}<strong>${state ? e(t(state.image.status)) : '—'}</strong></p><hr>${cloudComics ? `<p>${e(t('comicImageReview'))}</p><p><a href="/examples/bean-comic/" target="_blank" rel="noopener">${e(t('comicPilotExample'))} ↗</a></p>` : ''}<p>${e(t('generatedReview'))}</p><p>${e(t('developmentPlans'))}</p></aside></div>`
   );
 }
 function wireGeneration() {
   const form = document.querySelector('#generation-form');
   const submit = form.querySelector('#generate-submit');
   const quoteNotice = form.querySelector('#quote-notice');
-  let quoted = null;
+  let quoted = null,
+    previousKind;
   function payload() {
     const values = Object.fromEntries(new FormData(form));
     for (const key of ['grade', 'length', 'image_count']) values[key] = Number(values[key] || 1);
@@ -315,7 +324,17 @@ function wireGeneration() {
     submit.disabled = true;
     submit.textContent = t('generate');
     const kind = form.elements.kind.value;
-    const canInclude = ['lesson', 'comic'].includes(kind);
+    const canInclude = cloudComics ? kind === 'comic' : ['lesson', 'comic'].includes(kind);
+    if (cloudComics && kind === 'comic' && kind !== previousKind) {
+      form.elements.include_images.checked = true;
+      form.elements.namedItem('length').value = '4';
+    }
+    previousKind = kind;
+    form.elements.include_images.closest('label').hidden = cloudComics && !canInclude;
+    form.elements.image_count.parentElement.hidden = kind === 'comic';
+    form.elements.aspect_ratio.parentElement.hidden = cloudComics;
+    form.elements.namedItem('length').max =
+      cloudComics && kind === 'comic' && form.elements.include_images.checked ? 4 : 12;
     form.elements.include_images.disabled = !canInclude;
     if (!canInclude) form.elements.include_images.checked = false;
     form.querySelector('#image-options').hidden =
@@ -387,8 +406,16 @@ function materialHTML(material) {
       c.explanation ? `<p class="preserve-lines">${e(c.explanation)}</p>` : ''
     ) +
     section('examples', c.examples?.map((x) => `<p class="preserve-lines">${e(x)}</p>`).join(''));
-  if (c.panels?.length)
-    body += `<div class="comic-panels">${c.panels.map((panel, index) => `<article><span class="p-eyebrow">${String(index + 1).padStart(2, '0')}</span>${material.assets[index] ? `<img data-asset="${e(material.assets[index].url)}" alt="${e(panel.scene)}">` : ''}<h3>${e(panel.scene)}</h3><p>${e(panel.narration)}</p><blockquote>${e(panel.dialogue)}</blockquote></article>`).join('')}</div>`;
+  if (c.panels?.length) {
+    const byPanel = new Map(material.assets.map((asset) => [asset.index, asset]));
+    body += `<div class="comic-panels">${c.panels
+      .map((panel, index) => {
+        const asset = byPanel.get(index);
+        const dialogue = `<blockquote>${e(panel.dialogue)}</blockquote>`;
+        return `<article><span class="p-eyebrow">${String(index + 1).padStart(2, '0')}</span><h3>${e(panel.scene)}</h3>${asset ? `<div class="comic-frame"><img data-asset="${e(asset.url)}" alt="${e(panel.scene)}">${dialogue}</div>` : dialogue}<p>${e(panel.narration)}</p></article>`;
+      })
+      .join('')}</div>`;
+  }
   if (c.cards?.length)
     body += `<div class="flashcard-grid">${c.cards.map((card) => `<details><summary>${e(card.front)}</summary><p>${e(card.back)}</p></details>`).join('')}</div>`;
   body += section(
@@ -600,7 +627,9 @@ document.querySelector('#logout').addEventListener('click', async (event) => {
 });
 setLanguage(lang());
 try {
-  ({ client } = await connect());
+  const connection = await connect();
+  client = connection.client;
+  cloudComics = connection.config.comic_pilot === true;
   const session = client ? (await client.auth.getSession()).data.session : null;
   if (!session) location.replace('/auth.html#login');
   else {

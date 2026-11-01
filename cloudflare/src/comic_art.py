@@ -1,0 +1,164 @@
+"""Private Workers AI/KV adapters. No GPU, user keys or public bucket URLs."""
+
+import asyncio
+import base64
+import binascii
+import json
+import logging
+import re
+
+from app.errors import AppError
+
+MODEL = "@cf/black-forest-labs/flux-2-klein-4b"
+logger = logging.getLogger("sana.art")
+MAX_PANEL_BYTES = 1024 * 1024
+
+
+class TransientRenderError(AppError):
+    pass
+
+
+def provider_error(exc):
+    # Never log provider messages (they can echo the prompt). Classify locally.
+    message = str(exc).lower()
+    denied = any(
+        word in message
+        for word in (
+            "quota",
+            "limit",
+            "429",
+            "filter",
+            "moderat",
+            "safety",
+            "policy",
+            "nsfw",
+            "payment",
+            "forbidden",
+        )
+    )
+    temporary = isinstance(exc, TimeoutError) or bool(
+        re.search(
+            r"\b50[0234]\b|temporar|bad gateway|service unavailable|internal server error|upstream connect",
+            message,
+        )
+    )
+    code = re.search(r"\b(?:[1-5]\d{2}|[1-9]\d{3})\b", message)
+    logger.warning(
+        "comic_provider_failure type=%s code=%s transient=%s restricted=%s",
+        type(exc).__name__,
+        code.group() if code else "unknown",
+        temporary,
+        denied,
+    )
+    cls = TransientRenderError if temporary and not denied else AppError
+    return cls("image_inference_failed", 503)
+
+
+def unpack_image(encoded):
+    if not isinstance(encoded, str) or not 0 < len(encoded) <= 4 * (
+        (MAX_PANEL_BYTES + 2) // 3
+    ):
+        raise AppError("image_inference_failed", 502)
+    try:
+        data = base64.b64decode(encoded, validate=True)
+    except (ValueError, binascii.Error) as error:
+        raise AppError("image_inference_failed", 502) from error
+    if len(data) <= MAX_PANEL_BYTES:
+        if data.startswith(b"\xff\xd8\xff"):
+            return data, "image/jpeg"
+        if data.startswith(b"\x89PNG\r\n\x1a\n"):
+            return data, "image/png"
+        if data.startswith(b"RIFF") and data[8:12] == b"WEBP":
+            return data, "image/webp"
+    raise AppError("image_inference_failed", 502)
+
+
+async def visual_briefs(ai, model, content):
+    """If the script ignored the English art field, repair only those briefs once."""
+    prompts = [p["image_prompt"] for p in content["panels"]]
+
+    def valid(items):
+        return (
+            isinstance(items, list)
+            and len(items) == len(prompts)
+            and all(
+                isinstance(p, str)
+                and 0 < len(p) <= 2500
+                and re.search("[A-Za-z]", p)
+                and not re.search("[Ѐ-ԯ]", p)
+                for p in items
+            )
+        )
+
+    if valid(prompts):
+        return prompts
+    response = await asyncio.wait_for(
+        ai.run(
+            model,
+            {
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "Rewrite the supplied comic panels as standalone English image prompts. Preserve their order. First describe what must visibly change in the educational subject, its scale and setting; then the recurring character. Never omit the subject, never ask for lettering. Return JSON with a single prompts array of short English strings.",
+                    },
+                    {
+                        "role": "user",
+                        "content": json.dumps(content["panels"], ensure_ascii=False),
+                    },
+                ],
+                "max_tokens": 1200,
+                "temperature": 0.2,
+                "response_format": {"type": "json_object"},
+            },
+        ),
+        timeout=90,
+    )
+    try:
+        result = json.loads(response["choices"][0]["message"]["content"])["prompts"]
+        if not valid(result):
+            raise ValueError
+    except (ValueError, TypeError, KeyError, IndexError) as exc:
+        raise AppError("invalid_model_output", 502) from exc
+    return result
+
+
+async def render_panel(ai, scene, style, reference):
+    from workers import Blob, FormData, Response
+
+    prompt = f"{scene[:1400]} Single {style} educational comic panel. Show the specific subject and its state clearly in one coherent scene. No lettering or speech balloons."
+    if reference:
+        prompt += " Use image 0 ONLY as a reference for character identity and drawing style. Recompose the panel to show the requested change. The essential object must be visibly present in its surroundings."
+    form = FormData({"prompt": prompt, "width": "512", "height": "512"})
+    if reference:
+        data, mime = reference
+        form.append("input_image_0", Blob([data], content_type=mime), "first-panel")
+    packet = Response(form)
+    try:
+        result = await asyncio.wait_for(
+            ai.run(
+                MODEL,
+                {
+                    "multipart": {
+                        "body": packet.body,
+                        "contentType": packet.headers["content-type"],
+                    }
+                },
+            ),
+            timeout=75,
+        )
+        encoded = result.get("image")
+        if not encoded:
+            logger.warning("comic_empty_image")
+        return unpack_image(encoded)
+    except AppError:
+        raise
+    except Exception as error:
+        raise provider_error(error) from error
+
+
+async def store_panel(kv, key, image):
+    from workers import Blob
+
+    data, mime = image
+    # Pass a native ArrayBuffer rather than copying bytes through RPC one by one.
+    await kv.put(key, await Blob([data], content_type=mime).js_object.arrayBuffer())

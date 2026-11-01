@@ -12,6 +12,7 @@ from app.models import Job, Material, TokenAccount, TokenTransaction, utcnow
 from app.schemas import GenerationInput
 from app.services import create_job
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "cloudflare/src"))
 spec = importlib.util.spec_from_file_location(
     "sana_cloud_test", Path(__file__).resolve().parents[2] / "cloudflare/src/cloud_runtime.py"
 )
@@ -218,3 +219,184 @@ def test_daily_cloud_limit_does_not_reserve_tokens_and_allows_idempotent_retry(
     with factory() as db:
         assert db.scalar(select(func.count()).select_from(Job)) == 1
         assert db.get(TokenAccount, owner.id).reserved == db.get(Job, job_id).cost
+
+
+def test_illustrated_comic_pipeline(factory, owner, config, monkeypatch):
+    from app.errors import AppError
+    from app.models import Asset
+
+    config.runtime = "cloudflare"
+    req = GenerationInput(
+        kind="comic", include_images=True, subject="Физика", topic="Свет", length=4
+    )
+    content = {
+        "title": "Свет",
+        "kind": "comic",
+        "language": "ru",
+        "objectives": ["Увидеть свет"],
+        "panels": [
+            {
+                "scene": "Опыт",
+                "narration": "Проверяем лампу.",
+                "dialogue": "Смотри!",
+                "image_prompt": f"Scene {i}",
+            }
+            for i in range(4)
+        ],
+    }
+
+    async def text_model(*_):
+        return {"choices": [{"message": {"content": json.dumps(content)}}]}
+
+    worker = runtime(factory, config, monkeypatch, text_model)
+    storage, refs = {}, []
+
+    class KV:
+        async def delete(self, key):
+            storage.pop(key, None)
+
+    worker.env.COMIC_ART = KV()
+    fail = True
+
+    async def draw(ai, scene, style, reference):
+        refs.append(reference)
+        if fail and len(refs) == 3:
+            raise AppError("image_inference_failed", 503)
+        if not fail and len(refs) == 1:
+            raise cloud.TransientRenderError("image_inference_failed", 503)
+        return scene.encode(), "image/jpeg"
+
+    async def put(_, key, image):
+        storage[key] = image
+
+    monkeypatch.setattr(cloud, "render_panel", draw)
+    monkeypatch.setattr(cloud, "store_panel", put)
+
+    def run(key):
+        with factory.begin() as db:
+            job, _ = create_job(db, owner, req, key, config)
+            assert job.cost == 52
+            job_id = job.id
+        asyncio.run(worker.generate(str(job_id)))
+        asyncio.run(worker.generate(str(job_id)))
+        return job_id
+
+    failed = run("partial-pilot")
+    with factory() as db:
+        assert db.get(Job, failed).status == "failed"
+        assert db.get(TokenAccount, owner.id).available == 100
+        assert not storage and db.scalar(select(func.count()).select_from(Asset)) == 0
+    fail = False
+    refs.clear()
+    done = run("complete-pilot")
+    assert refs == [None, None] + [(b"Scene 0", "image/jpeg")] * 3
+    with factory() as db:
+        material = db.scalar(select(Material).where(Material.job_id == done))
+        assets = sorted(db.scalars(select(Asset)).all(), key=lambda a: a.metadata_json["index"])
+        assert material.owner_id == owner.id and len(assets) == len(storage) == 4
+        assert [storage[a.storage_key][0] for a in assets] == [
+            f"Scene {i}".encode() for i in range(4)
+        ]
+        assert all(a.material_id == material.id and a.owner_id == owner.id for a in assets)
+        account = db.get(TokenAccount, owner.id)
+        assert (account.available, account.reserved) == (48, 0)
+
+
+def test_cloud_assets_obey_ownership_and_deletion(client, factory, monkeypatch, config, quiz):
+    from app import main
+    from app.models import Asset, Profile
+
+    config.runtime = "cloudflare"
+    calls = []
+
+    class Store:
+        async def read_panel(self, key):
+            calls.append(("read", key))
+            return b"image"
+
+        async def delete_panels(self, keys):
+            calls.append(("delete", keys))
+
+    monkeypatch.setattr(main.app.state, "cloud", Store(), raising=False)
+    # Source profile is created through the same authenticated dependency as other resources.
+    from uuid import UUID, uuid4
+
+    actor = str(uuid4())
+    headers = {"Authorization": f"Bearer {actor}"}
+    client.get("/api/v1/profile", headers=headers)
+    with factory.begin() as db:
+        owner_id = db.scalar(select(Profile.id).where(Profile.supabase_id == UUID(actor)))
+        material = Material(
+            owner_id=owner_id,
+            subject="Наука",
+            topic="Урок",
+            kind="quiz",
+            language="ru",
+            title="Урок",
+            content=quiz,
+        )
+        db.add(material)
+        db.flush()
+        asset = Asset(
+            owner_id=owner_id,
+            material_id=material.id,
+            storage_key="private/key",
+            mime_type="image/jpeg",
+            size=5,
+            metadata_json={"index": 0},
+        )
+        db.add(asset)
+        db.flush()
+        asset_id, mid = asset.id, material.id
+    assert (
+        client.get(
+            f"/api/v1/assets/{asset_id}", headers={"Authorization": f"Bearer {uuid4()}"}
+        ).status_code
+        == 404
+    )
+    response = client.get(f"/api/v1/assets/{asset_id}", headers=headers)
+    assert response.content == b"image" and "no-store" in response.headers["cache-control"]
+    assert client.delete(f"/api/v1/materials/{mid}", headers=headers).status_code == 204
+    assert client.get(f"/api/v1/assets/{asset_id}", headers=headers).status_code == 404
+    assert calls == [("read", "private/key"), ("delete", ["private/key"])]
+
+
+def test_art_briefs_repair_once_and_keep_dialogue():
+    import pytest
+    from comic_art import visual_briefs
+
+    from app.errors import AppError
+
+    script = {"panels": [{"image_prompt": "Белый корешок", "dialogue": "Вижу корешок!"}]}
+    calls = []
+
+    async def run(_, payload):
+        calls.append(payload)
+        return {
+            "choices": [{"message": {"content": '{"prompts":["A white root grows from a bean"]}'}}]
+        }
+
+    assert asyncio.run(visual_briefs(SimpleNamespace(run=run), "qwen", script)) == [
+        "A white root grows from a bean"
+    ]
+    assert len(calls) == 1 and script["panels"][0]["dialogue"] == "Вижу корешок!"
+
+    async def invalid(*_):
+        return {"choices": [{"message": {"content": '{"prompts":[]}'}}]}
+
+    with pytest.raises(AppError, match="invalid_model_output"):
+        asyncio.run(visual_briefs(SimpleNamespace(run=invalid), "qwen", script))
+
+
+def test_image_provider_retry_does_not_retry_quota_or_safety_failures():
+    from comic_art import TransientRenderError, provider_error
+
+    assert isinstance(provider_error(TimeoutError()), TransientRenderError)
+    assert isinstance(provider_error(RuntimeError("503 Service Unavailable")), TransientRenderError)
+    for message in [
+        "429 quota exceeded",
+        "content safety policy",
+        "model unavailable",
+        "403 forbidden",
+    ]:
+        assert not isinstance(provider_error(RuntimeError(message)), TransientRenderError)

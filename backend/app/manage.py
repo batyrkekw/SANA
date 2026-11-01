@@ -19,6 +19,7 @@ class Limits(BaseModel):
     max_prompt: int = Field(ge=1, le=6000)
     max_length: int = Field(ge=1, le=12)
     max_panels: int = Field(ge=0, le=8)
+    max_comic_images: int = Field(0, ge=0, le=4)
     max_images: int = Field(ge=0, le=8)
 
 

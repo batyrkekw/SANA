@@ -739,6 +739,33 @@
   .comic-panels p {
     margin: 14px 0;
   }
+  .comic-frame {
+    position: relative;
+    display: grid;
+    align-items: end;
+    isolation: isolate;
+  }
+  .comic-frame img,
+  .comic-frame blockquote {
+    grid-area: 1 / 1;
+  }
+  .comic-frame img {
+    margin: 0;
+    aspect-ratio: 1;
+    object-fit: cover;
+  }
+  .comic-panels .comic-frame blockquote {
+    position: relative;
+    justify-self: start;
+    max-width: 92%;
+    margin: 12px;
+    background: #fff;
+    color: #14283d;
+    border: 2px solid #14283d;
+    padding: 8px 12px;
+    border-radius: 15px 15px 15px 3px;
+    font-weight: 600;
+  }
   .comic-panels blockquote {
     border-left: 3px solid #c8a455;
     padding-left: 16px;

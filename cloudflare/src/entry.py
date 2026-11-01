@@ -14,7 +14,8 @@ os.environ.update(
         "SANA_ENVIRONMENT": "production",
         "SANA_AUTH_MODE": "auth_server",
         "SANA_LLM_MODEL": "@cf/qwen/qwen3-30b-a3b-fp8",
-        "SANA_IMAGE_ENABLED": "false",
+        "SANA_IMAGE_ENABLED": "true",
+        "SANA_IMAGE_MAX_COUNT": "4",
         "SANA_JOB_TIMEOUT_SECONDS": "600",
         "SANA_DAILY_GENERATION_LIMIT": "20",
     }

@@ -70,13 +70,23 @@ def quote(db: Session, profile_id: uuid.UUID, request: GenerationInput, settings
     plan = user_plan(db, profile_id)
     limits = plan.limits
     count = image_count(request)
-    if request.kind not in limits["kinds"] or (count and not limits["images"]):
+    comic_limit = limits.get("max_comic_images", limits["max_images"] if limits["images"] else 0)
+    permitted_images = (
+        comic_limit if request.kind == "comic" else limits["max_images"] if limits["images"] else 0
+    )
+    if (
+        count
+        and settings.runtime == "cloudflare"
+        and (request.kind != "comic" or request.aspect_ratio != "1:1")
+    ):
+        raise AppError("comic_pilot_only", 422)
+    if request.kind not in limits["kinds"] or (count and not permitted_images):
         raise AppError("plan_restriction", 403)
     if (
         len(request.instructions) > limits["max_prompt"]
         or request.length > limits["max_length"]
         or (request.kind == "comic" and request.length > limits["max_panels"])
-        or count > min(limits["max_images"], settings.image_max_count)
+        or count > min(permitted_images, settings.image_max_count)
     ):
         raise AppError("plan_limit", 422)
     # Length and image pixels affect the quote; identical formula is used at reservation time.
