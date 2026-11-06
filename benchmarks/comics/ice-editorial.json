@@ -1,0 +1,35 @@
+{
+  "title": "Миссия: сохранить лёд",
+  "language": "ru",
+  "kind": "comic",
+  "objectives": [
+    "Объяснить, почему тепло вызывает таяние льда.",
+    "Различать воду в твёрдом и жидком состояниях."
+  ],
+  "panels": [
+    {
+      "scene": "План на перемену",
+      "dialogue": "Лёд, держись до звонка!",
+      "narration": "Алия ставит стакан на тёплый подоконник: здесь лёд получает тепло.",
+      "image_prompt": "The same ten-year-old schoolgirl Aliya, short black bob haircut and yellow hoodie, proudly raises one index finger. On the windowsill beside her stands a tall transparent tumbler with THREE SMALL ice cubes at its bottom, no liquid yet. The cubes occupy only the bottom quarter of the glass; most of the glass is empty."
+    },
+    {
+      "scene": "План начал таять",
+      "dialogue": "Я же просила держаться…",
+      "narration": "Получая тепло, твёрдая вода — лёд — превращается в жидкую.",
+      "image_prompt": "The same ten-year-old schoolgirl Aliya with short black bob and yellow hoodie leans toward the same tall tumbler, eyes wide and eyebrows raised in comic disbelief. TWO SMALL partly melted ice cubes rest in a shallow puddle at the very bottom. All contents remain below the bottom-quarter line; most of the glass is empty."
+    },
+    {
+      "scene": "Разгадка на подоконнике",
+      "dialogue": "А, тут слишком тепло!",
+      "narration": "В стакане пока есть вода в двух состояниях: лёд и жидкость.",
+      "image_prompt": "The same ten-year-old Aliya with short black bob and yellow hoodie points toward the sunny window with a sudden understanding expression. The same tall transparent tumbler contains ONE TINY shrinking white ice chip floating in a shallow puddle at the bottom. The water is only one-fifth of the glass height."
+    },
+    {
+      "scene": "Сохранён только план",
+      "dialogue": "Мой план сохранился. Лёд — нет.",
+      "narration": "В холодном месте лёд получал бы меньше тепла и сохранился бы дольше.",
+      "image_prompt": "The same ten-year-old Aliya with short black bob and yellow hoodie makes an exaggerated sheepish facepalm while smiling. The same tall transparent tumbler has ONLY a shallow pool of transparent liquid at its bottom, one-fifth of its height. ZERO ice pieces: completely clear liquid with absolutely no white blocks, cubes, floating objects or solid shapes. The rest of the glass is empty air."
+    }
+  ]
+}

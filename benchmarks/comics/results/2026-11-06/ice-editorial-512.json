@@ -1,0 +1,33 @@
+{
+  "request": {
+    "kind": "comic",
+    "subject": "Окружающий мир",
+    "topic": "Почему лёд превращается в воду?",
+    "grade": 4,
+    "language": "ru",
+    "length": 4,
+    "instructions": "Четыре момента одного опыта. Алия: школьница с короткими тёмными волосами и жёлтой кофтой, видна в каждом кадре вместе со стаканом. Один и тот же высокий прозрачный стакан на подоконнике. В начале три маленьких кубика льда вместе занимают не более четверти высоты стакана. В конце вода от них занимает менее четверти стакана; воду никто не доливает. 1: Алия хочет сохранить лёд до конца урока и ставит стакан на тёплый солнечный подоконник. 2: замечает, что лёд тает. 3: остаётся один маленький кусочек в неглубокой луже воды. 4: льда нет, только немного воды; Алия понимает, что выбрала неудачное место. Тепло вызывает таяние; вещество остаётся водой. Без кипения, пара, брызг. Короткая шутка в конце должна возвращать к её первоначальному плану.",
+    "include_images": true,
+    "image_count": 1,
+    "style": "cartoon",
+    "aspect_ratio": "1:1"
+  },
+  "image_model": "@cf/black-forest-labs/flux-2-klein-4b",
+  "image_size": 512,
+  "text_model": "@cf/qwen/qwen3-30b-a3b-fp8",
+  "pricing_source": "https://developers.cloudflare.com/workers-ai/platform/pricing/",
+  "pricing_checked": "2026-11-06",
+  "billing_verified": false,
+  "mode": "editorial_script_image_only",
+  "image_status": 200,
+  "image_usage": null,
+  "image_result_fields": [],
+  "image_seconds": 17.28,
+  "text_neurons_reported": 0,
+  "success": true,
+  "calls": [],
+  "image_bytes": 173186,
+  "text_neurons_estimate": 0,
+  "image_neurons_estimate": 26.05,
+  "total_neurons_estimate": 26.05
+}

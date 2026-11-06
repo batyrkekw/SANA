@@ -1,0 +1,56 @@
+{
+  "training_started": false,
+  "reason": "quality_gate_failed",
+  "gpu_training_configured": false,
+  "reviewer": "assistant_visual_review",
+  "audience_tested": false,
+  "image_model": "@cf/black-forest-labs/flux-2-klein-4b",
+  "text_model": "@cf/qwen/qwen3-30b-a3b-fp8",
+  "baseline": {
+    "source": "production_queue",
+    "processing_seconds": 30.62,
+    "queue_seconds": 31.73,
+    "image_count": 1,
+    "story_panels": 4,
+    "admin_charge": 0
+  },
+  "criteria": [
+    "four panels in reading order",
+    "character continuity",
+    "visible causal process",
+    "no false scientific depiction",
+    "natural dialogue with a related payoff"
+  ],
+  "critical_failures": {
+    "baseline": [
+      "missing protagonist",
+      "increased amount of water"
+    ],
+    "ice-v2": [
+      "ice remains in final frame",
+      "incorrect narration about liquid ice"
+    ],
+    "ice-editorial-512": [
+      "glass disappears",
+      "ice returns in final frame"
+    ],
+    "ice-editorial-1024": [
+      "glass absent in first frames",
+      "ice returns in final frame"
+    ],
+    "ice-compact-512": [
+      "water outside glass",
+      "inconsistent liquid level"
+    ]
+  },
+  "next_training_gate": {
+    "approved_image_targets": 0,
+    "editorial_story_seeds": 1,
+    "required_before_training": [
+      "correct image targets",
+      "more independently reviewed story examples",
+      "a separate evaluation set",
+      "an accessible compatible GPU runtime"
+    ]
+  }
+}

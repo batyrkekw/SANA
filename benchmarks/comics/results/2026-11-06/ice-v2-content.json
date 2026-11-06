@@ -1,0 +1,41 @@
+{
+  "title": "Почему лёд превращается в воду?",
+  "language": "ru",
+  "kind": "comic",
+  "objectives": [
+    "Показать процесс таяния льда под воздействием тепла",
+    "Объяснить, что вещество остаётся водой после таяния",
+    "Показать, как температура влияет на агрегатное состояние воды"
+  ],
+  "explanation": "",
+  "examples": [],
+  "questions": [],
+  "summary": "",
+  "panels": [
+    {
+      "scene": "Алия ставит стакан с льдом на подоконник",
+      "dialogue": "Хорошо, лёд останется до конца урока!",
+      "narration": "Алия хочет сохранить лёд, поставив стакан на тёплый подоконник",
+      "image_prompt": "A 16-year-old Alyia with short dark hair wears a yellow jacket while holding a 300ml transparent glass containing three small ice cubes on a windowsill. Daylight illuminates the scene. The glass occupies 15% of the height. A visible window frame frames the glass, which remains fixed in position."
+    },
+    {
+      "scene": "Алия смотрит на стакан с удивлением",
+      "dialogue": "Ой, лёд уже тает!",
+      "narration": "Тепло подоконника вызывает таяние льда",
+      "image_prompt": "A 16-year-old Alyia with short dark hair wears a yellow jacket while staring at a 300ml transparent glass containing two small ice cubes and a water pool at the bottom. Daylight illuminates the scene. The glass occupies 15% of the height. A visible window frame frames the glass, which remains fixed in position."
+    },
+    {
+      "scene": "Алия наклоняется, чтобы посмотреть на оставшийся кусочек льда",
+      "dialogue": "Ещё немного...",
+      "narration": "Лёд продолжает таять, оставаясь в жидком состоянии",
+      "image_prompt": "A 16-year-old Alyia with short dark hair wears a yellow jacket while leaning over a 300ml transparent glass containing one small ice cube remaining and a water pool at the bottom. Daylight illuminates the scene. The glass occupies 15% of the height. A visible window frame frames the glass, which remains fixed in position."
+    },
+    {
+      "scene": "Алия смотрит на пустой стакан с водой",
+      "dialogue": "Ну, теперь лёд точно не останется...",
+      "narration": "Тепло полностью превратило лёд в воду без кипения или испарения",
+      "image_prompt": "A 16-year-old Alyia with short dark hair wears a yellow jacket while holding a 300ml transparent glass containing only water. Daylight illuminates the scene. The glass occupies 15% of the height. A visible window frame frames the glass, which remains fixed in position."
+    }
+  ],
+  "cards": []
+}
